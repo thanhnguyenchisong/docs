@@ -2,6 +2,66 @@
 
 Bộ tài liệu này bao gồm **Angular** và các thành phần xung quanh cần thiết để xây dựng một **ứng dụng web Angular hoàn chỉnh**: TypeScript, components, routing, forms, HTTP, RxJS, UI, testing và build/deploy.
 
+---
+
+## 🌱 Dành cho người mới hoàn toàn
+
+Phần này giúp bạn **chưa từng làm web** hoặc **mới chuyển sang frontend** có thể bắt đầu mà không bị lạc.
+
+### Frontend là gì? Tại sao cần học?
+
+- **Frontend** (phía trước) là phần **người dùng nhìn thấy và tương tác** trên trình duyệt: giao diện, nút bấm, form đăng nhập, danh sách sản phẩm, v.v.
+- **Backend** (phía sau) là phần chạy trên máy chủ: lưu dữ liệu, xử lý logic, trả dữ liệu cho frontend qua **API**.
+- Khi bạn mở một trang web (Facebook, Shopee, ngân hàng…), mọi thứ bạn thấy và click đều do **frontend** tạo ra. Học frontend = học cách xây dựng những thứ đó.
+
+### Bạn cần chuẩn bị gì trước khi đọc?
+
+| Yêu cầu | Giải thích ngắn |
+|--------|-------------------|
+| **HTML cơ bản** | Biết thẻ `<div>`, `<p>`, `<a>`, `<form>`, `<input>`. Nếu chưa, hãy học qua [MDN HTML](https://developer.mozilla.org/vi/docs/Web/HTML) (vài giờ). |
+| **JavaScript cơ bản** | Biết biến, hàm, `if/else`, vòng lặp, array, object. Chưa cần async/class sâu. |
+| **Terminal / CMD** | Biết mở terminal (hoặc Command Prompt), `cd` vào thư mục, chạy lệnh như `npm install`, `ng serve`. |
+| **Trình duyệt** | Chrome hoặc Edge (để mở DevTools: F12 — dùng rất nhiều khi debug). |
+| **Node.js** | Cài [Node.js](https://nodejs.org/) (bản LTS). Angular và npm cần Node để chạy. |
+
+Nếu bạn **chưa biết HTML/JS**, hãy dành 1–2 tuần học nền tảng trước (MDN, freeCodeCamp, hoặc khóa nhập môn bất kỳ), rồi quay lại đây — tài liệu sẽ dễ hiểu hơn rất nhiều.
+
+### Một số thuật ngữ sẽ gặp (glossary)
+
+| Thuật ngữ | Ý nghĩa đơn giản |
+|-----------|-------------------|
+| **SPA** | Single Page Application — trang web chỉ load một lần, sau đó chuyển “trang” bằng JavaScript, không tải lại cả trang. |
+| **Component** | Một “khối” giao diện tái sử dụng được (ví dụ: một nút, một card sản phẩm, một form đăng nhập). |
+| **API** | Cách frontend “xin” hoặc “gửi” dữ liệu với backend (thường qua URL như `/api/users`). |
+| **Routing** | Điều hướng giữa các “trang” trong app (ví dụ: `/home`, `/products`, `/login`). |
+| **State** | Trạng thái dữ liệu của ứng dụng (user đã đăng nhập chưa, danh sách sản phẩm đang hiển thị là gì, v.v.). |
+| **npm** | Công cụ cài đặt thư viện (package) cho dự án Node/Angular. Lệnh hay dùng: `npm install`, `npm start`. |
+| **Build** | Biến code TypeScript/Angular thành file JavaScript và HTML để trình duyệt chạy được. |
+
+Khi gặp từ mới trong bài, có thể quay lại bảng này hoặc tra Google: “tên thuật ngữ + frontend”.
+
+### Nên bắt đầu từ đâu?
+
+- **Nếu bạn chưa biết CSS, layout, responsive:**  
+  Nên đọc trước **[web/README.md](web/README.md)** và ít nhất **01–04** (CSS, Layout, SCSS, Responsive). Như vậy khi làm Angular bạn sẽ hiểu cách style và bố cục trang.
+
+- **Nếu đã biết HTML/CSS/JS cơ bản và muốn làm app Angular ngay:**  
+  Bắt đầu từ **Angular**: đọc **01 TypeScript** → **02 Angular căn bản** → **03 Components & Templates**, rồi làm theo thứ tự trong [Lộ trình học](#-lộ-trình-học) bên dưới.
+
+- **Gợi ý:** Đọc song song **web** (nền CSS, responsive, a11y) và **Angular** (framework) — áp dụng ngay vào project sẽ nhớ lâu hơn.
+
+### Cách đọc tài liệu và thực hành
+
+1. **Đọc theo số thứ tự** (01, 02, 03…) — mỗi bài dựa trên bài trước.
+2. **Chạy code** trong khi đọc: tạo project bằng `ng new`, copy ví dụ từ bài vào project và xem kết quả trên trình duyệt.
+3. **Mở DevTools (F12)** khi chạy app: tab Elements để xem HTML/CSS, Console để xem lỗi và `console.log`.
+4. **Làm project nhỏ** sau mỗi vài bài (ví dụ: trang danh sách sản phẩm, form đăng ký) để gắn kiến thức lại.
+5. **Đừng cố nhớ hết** — khi cần dùng đến (ví dụ: routing, form) hãy mở lại bài tương ứng và tra cứu.
+
+Khi bạn đã nắm phần “Dành cho người mới” ở trên, hãy bắt đầu từ **[Mục lục](#-mục-lục)** và **[Lộ trình học](#-lộ-trình-học)** bên dưới.
+
+---
+
 ## 📚 Mục lục
 
 Đọc theo thứ tự số để đi từ nền tảng đến ứng dụng hoàn chỉnh.

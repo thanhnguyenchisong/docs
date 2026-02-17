@@ -3,16 +3,30 @@
 Nền tảng CSS: selectors, specificity, cascade, kế thừa, box model và units. Senior cần nắm chắc để debug style và override đúng cách.
 
 ## Mục lục
-1. [Selectors](#selectors)
-2. [Specificity và Cascade](#specificity-và-cascade)
-3. [Kế thừa (inheritance)](#kế-thừa-inheritance)
-4. [Box model](#box-model)
-5. [Units: px, em, rem, %, vw/vh](#units-px-em-rem--vwvh)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [CSS là gì? (Cho người mới)](#css-là-gì-cho-người-mới)
+2. [Selectors](#selectors)
+3. [Specificity và Cascade](#specificity-và-cascade)
+4. [Kế thừa (inheritance)](#kế-thừa-inheritance)
+5. [Box model](#box-model)
+6. [Units: px, em, rem, %, vw/vh](#units-px-em-rem--vwvh)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## CSS là gì? (Cho người mới)
+
+- **HTML** mô tả **nội dung và cấu trúc** trang (tiêu đề, đoạn văn, danh sách, form…). Nó không quyết định màu chữ, cỡ chữ hay cách sắp xếp trên màn hình.
+- **CSS** (Cascading Style Sheets) là ngôn ngữ dùng để **trang trí và bố cục** những nội dung đó: màu chữ, font, khoảng cách, viền, nền, vị trí phần tử…
+- Ví dụ: cùng một thẻ `<p>Hello</p>`, bạn có thể dùng CSS để làm chữ màu xanh, cỡ 18px, hoặc màu đỏ, in đậm — tùy bạn viết rule CSS nào.
+- **Tại sao cần học kỹ CSS?** Trong thực tế, rất nhiều bug giao diện (chữ bị đè, layout vỡ, không đúng design) đến từ việc không nắm specificity, box model hay đơn vị. Nắm chắc bài này giúp bạn debug nhanh và viết style đúng ý từ đầu.
+
+**Cách CSS gắn với HTML:** Trong file HTML bạn có thể dùng thẻ `<link href="style.css" rel="stylesheet">` để nối file CSS, hoặc viết CSS trong thẻ `<style>` — trình duyệt sẽ đọc và áp dụng các rule lên từng phần tử HTML tương ứng.
 
 ---
 
 ## Selectors
+
+**Selector** là cách bạn “chỉ định” trình duyệt: “áp dụng style này cho những phần tử nào”. Nếu không có selector đúng, CSS sẽ không áp dụng vào đúng chỗ.
 
 | Loại | Ví dụ | Mô tả |
 |------|--------|--------|
@@ -44,6 +58,8 @@ p::first-letter { font-size: 2em; }
 ---
 
 ## Specificity và Cascade
+
+**Cho người mới:** Trong một trang có rất nhiều CSS (từ file của bạn, từ thư viện, từ trình duyệt). Khi hai rule cùng “nhắm” vào một phần tử và cùng thuộc tính (ví dụ cùng `color`), trình duyệt phải chọn một. **Specificity** là quy tắc để biết “rule nào thắng”.
 
 **Specificity** (độ ưu tiên): Quyết định rule nào thắng khi cùng property.
 
@@ -86,6 +102,8 @@ a { color: inherit; }
 
 ## Box model
 
+**Cho người mới:** Trên trang web, mỗi thẻ HTML (div, p, button…) được trình duyệt coi như một **hộp chữ nhật**. Hộp đó gồm: phần **nội dung** (content), rồi **padding** (khoảng trống bên trong giữa nội dung và viền), **border** (viền), và **margin** (khoảng trống bên ngoài viền, đẩy các hộp khác ra). Hiểu box model giúp bạn biết tại sao khi set `width: 200px` rồi thêm `padding` thì tổng chiều rộng có thể lớn hơn 200px — và cách dùng `box-sizing` để kiểm soát.
+
 Mỗi element là một hộp: **content** → **padding** → **border** → **margin**.
 
 - **box-sizing**: `content-box` (mặc định) — width/height chỉ tính content; padding/border cộng thêm. `border-box` — width/height đã gồm padding + border.
@@ -103,6 +121,8 @@ Mỗi element là một hộp: **content** → **padding** → **border** → **
 ---
 
 ## Units: px, em, rem, %, vw/vh
+
+**Cho người mới:** Khi bạn viết `width: 200` thì 200 **cái gì**? CSS cần **đơn vị**. `px` là pixel (chấm trên màn hình). `em` và `rem` là đơn vị tương đối theo cỡ chữ — dùng chúng giúp trang dễ scale khi user phóng to chữ hoặc khi bạn đổi font-size gốc. `%` thường là phần trăm so với phần tử cha. `vw`/`vh` là phần trăm so với kích thước cửa sổ trình duyệt. Biết sự khác nhau giúp bạn chọn đơn vị phù hợp cho từng trường hợp (font, spacing, layout).
 
 | Unit | Ý nghĩa |
 |------|---------|
