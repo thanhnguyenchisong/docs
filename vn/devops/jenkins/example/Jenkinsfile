@@ -1,0 +1,18 @@
+// Minh hoạ Jenkins Pipeline — chạy được với Jenkins
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Build stage'
+                sh 'echo "Hello from Jenkins"'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Test stage'
+                sh 'uname -a'
+            }
+        }
+    }
+}

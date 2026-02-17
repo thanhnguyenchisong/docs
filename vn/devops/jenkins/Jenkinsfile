@@ -1,0 +1,726 @@
+// ==============================================================================
+// Jenkins Pipeline Configuration - Production Ready cho Spring Boot Application
+// ==============================================================================
+// File này định nghĩa Declarative Pipeline cho ứng dụng bottleneck-resolve
+// Pipeline bao gồm: build, test, security scan, Docker build, và deployment
+// ==============================================================================
+
+@Library('shared-lib@main') _  // Optional: Load shared library nếu có
+
+pipeline {
+    // --------------------------------------------------------------------------
+    // 1. AGENT CONFIGURATION
+    // --------------------------------------------------------------------------
+    // Định nghĩa agent để chạy pipeline
+    // Có thể override ở từng stage nếu cần
+    agent {
+        // Sử dụng Docker agent với Maven image
+        docker {
+            image 'maven:3.9-eclipse-temurin-21-jammy'
+            args '-v /root/.m2:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock'
+            // Mount Maven cache để tăng tốc build
+            // Mount Docker socket để build Docker images
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // 2. OPTIONS - Pipeline-level options
+    // --------------------------------------------------------------------------
+    options {
+        // Giữ build history (tối đa 50 builds)
+        buildDiscarder(logRotator(
+            numToKeepStr: '50',
+            daysToKeepStr: '30',
+            artifactNumToKeepStr: '10'
+        ))
+        
+        // Timeout cho toàn bộ pipeline (30 phút)
+        timeout(time: 30, unit: 'MINUTES')
+        
+        // Retry logic: retry tối đa 3 lần nếu fail
+        retry(3)
+        
+        // Timestamps trong console output
+        timestamps()
+        
+        // AnsiColor để hiển thị màu sắc trong console
+        ansiColor('xterm')
+        
+        // Skip stages nếu không có thay đổi trong code
+        skipStagesAfterUnstable()
+        
+        // Disable concurrent builds trên cùng một branch
+        disableConcurrentBuilds()
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. ENVIRONMENT VARIABLES
+    // --------------------------------------------------------------------------
+    // Biến môi trường áp dụng cho tất cả stages
+    environment {
+        // Application configuration
+        APP_NAME = 'bottleneck-resolve'
+        APP_VERSION = '0.0.1-SNAPSHOT'
+        JAVA_VERSION = '21'
+        
+        // Maven configuration
+        MAVEN_OPTS = '-Dmaven.test.skip=false -Dmaven.javadoc.skip=true'
+        MAVEN_CLI_OPTS = '--batch-mode --errors --fail-at-end --show-version'
+        
+        // Docker configuration
+        DOCKER_REGISTRY = credentials('docker-registry-url')  // Từ Jenkins credentials
+        DOCKER_IMAGE_NAME = "${DOCKER_REGISTRY}/${APP_NAME}"
+        DOCKER_IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
+        DOCKER_IMAGE_LATEST = "${DOCKER_IMAGE_NAME}:latest"
+        
+        // Kubernetes configuration
+        K8S_NAMESPACE_STAGING = 'bottleneck-resolve-staging'
+        K8S_NAMESPACE_PROD = 'bottleneck-resolve-prod'
+        
+        // SonarQube configuration (nếu có)
+        SONAR_TOKEN = credentials('sonar-token')  // Từ Jenkins credentials
+        
+        // Notification
+        SLACK_WEBHOOK_URL = credentials('slack-webhook-url')  // Optional
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. PARAMETERS - Pipeline parameters
+    // --------------------------------------------------------------------------
+    // Cho phép user input khi trigger pipeline manually
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['none', 'staging', 'production'],
+            description: 'Environment to deploy to'
+        )
+        booleanParam(
+            name: 'SKIP_TESTS',
+            defaultValue: false,
+            description: 'Skip running tests'
+        )
+        booleanParam(
+            name: 'SKIP_SECURITY_SCAN',
+            defaultValue: false,
+            description: 'Skip security scanning'
+        )
+        string(
+            name: 'CUSTOM_IMAGE_TAG',
+            defaultValue: '',
+            description: 'Custom Docker image tag (optional)'
+        )
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. STAGES - Pipeline stages
+    // --------------------------------------------------------------------------
+    stages {
+        // ----------------------------------------------------------------------
+        // Stage 1: Checkout Source Code
+        // ----------------------------------------------------------------------
+        stage('Checkout') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Checkout Source Code"
+                    echo "=========================================="
+                    echo "Branch: ${env.BRANCH_NAME}"
+                    echo "Commit: ${env.GIT_COMMIT}"
+                    echo "Build Number: ${env.BUILD_NUMBER}"
+                }
+                // Checkout code từ SCM
+                checkout scm
+                
+                // Hiển thị thông tin git
+                sh '''
+                    echo "Git Information:"
+                    git log -1 --pretty=format:"%h - %an, %ar : %s"
+                    echo ""
+                    git show --stat
+                '''
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 2: Validate Code
+        // ----------------------------------------------------------------------
+        stage('Validate') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Validate Code"
+                    echo "=========================================="
+                }
+                // Validate pom.xml
+                sh "mvn ${MAVEN_CLI_OPTS} validate"
+                
+                // Compile để kiểm tra syntax errors
+                sh "mvn ${MAVEN_CLI_OPTS} compile"
+                
+                // Checkstyle (nếu có plugin)
+                sh "mvn ${MAVEN_CLI_OPTS} checkstyle:check || true"
+            }
+            post {
+                always {
+                    // Archive checkstyle reports
+                    archiveArtifacts artifacts: 'target/checkstyle-result.xml', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 3: Build Application
+        // ----------------------------------------------------------------------
+        stage('Build') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Build Application"
+                    echo "=========================================="
+                }
+                // Clean và build JAR file
+                sh """
+                    mvn ${MAVEN_CLI_OPTS} clean package \
+                        -DskipTests=${params.SKIP_TESTS}
+                """
+                
+                // Verify JAR file được tạo
+                sh """
+                    echo "Build artifacts:"
+                    ls -lh target/*.jar
+                    echo ""
+                    echo "JAR contents (first 20 entries):"
+                    jar tf target/${APP_NAME}-${APP_VERSION}.jar | head -20
+                """
+            }
+            post {
+                success {
+                    echo "✅ Build thành công!"
+                }
+                failure {
+                    echo "❌ Build thất bại!"
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 4: Unit Tests
+        // ----------------------------------------------------------------------
+        stage('Unit Tests') {
+            when {
+                // Chỉ chạy nếu không skip tests
+                not { params.SKIP_TESTS }
+            }
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Unit Tests"
+                    echo "=========================================="
+                }
+                // Chạy unit tests
+                sh "mvn ${MAVEN_CLI_OPTS} test"
+            }
+            post {
+                always {
+                    // Publish JUnit test reports
+                    junit 'target/surefire-reports/TEST-*.xml'
+                    
+                    // Archive test reports
+                    archiveArtifacts artifacts: 'target/surefire-reports/**/*', allowEmptyArchive: true
+                }
+                success {
+                    echo "✅ Tất cả unit tests passed!"
+                }
+                failure {
+                    echo "❌ Một số unit tests failed!"
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 5: Integration Tests
+        // ----------------------------------------------------------------------
+        stage('Integration Tests') {
+            when {
+                // Chỉ chạy trên main branch hoặc khi có thay đổi trong src/
+                anyOf {
+                    branch 'main'
+                    changeset "src/**/*"
+                }
+                not { params.SKIP_TESTS }
+            }
+            agent {
+                docker {
+                    image 'maven:3.9-eclipse-temurin-21-jammy'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Integration Tests"
+                    echo "=========================================="
+                }
+                // Chạy integration tests với PostgreSQL
+                sh """
+                    mvn ${MAVEN_CLI_OPTS} verify \
+                        -Dspring.profiles.active=test \
+                        -Dskip.unit.tests=true
+                """
+            }
+            post {
+                always {
+                    // Publish integration test reports
+                    junit 'target/failsafe-reports/TEST-*.xml'
+                    archiveArtifacts artifacts: 'target/failsafe-reports/**/*', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 6: Code Quality (SonarQube)
+        // ----------------------------------------------------------------------
+        stage('Code Quality') {
+            when {
+                // Chỉ chạy trên main branch hoặc merge requests
+                anyOf {
+                    branch 'main'
+                    branch 'develop'
+                }
+            }
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Code Quality Analysis"
+                    echo "=========================================="
+                }
+                // SonarQube analysis (nếu có SonarQube server)
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        mvn ${MAVEN_CLI_OPTS} sonar:sonar \
+                            -Dsonar.projectKey=${APP_NAME} \
+                            -Dsonar.sources=src \
+                            -Dsonar.java.binaries=target/classes
+                    """
+                }
+            }
+            post {
+                success {
+                    // Wait for SonarQube quality gate
+                    script {
+                        timeout(time: 5, unit: 'MINUTES') {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                error "Quality Gate failed: ${qg.status}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 7: Security Scanning
+        // ----------------------------------------------------------------------
+        stage('Security Scan') {
+            parallel {
+                // Dependency vulnerability scan
+                stage('Dependency Scan') {
+                    when {
+                        not { params.SKIP_SECURITY_SCAN }
+                    }
+                    steps {
+                        script {
+                            echo "=========================================="
+                            echo "Stage: Dependency Vulnerability Scan"
+                            echo "=========================================="
+                        }
+                        // OWASP Dependency Check
+                        sh """
+                            if [ ! -f dependency-check.sh ]; then
+                                curl -sSL https://raw.githubusercontent.com/owasp/dependency-check/main/dependency-check.sh -o dependency-check.sh
+                                chmod +x dependency-check.sh
+                            fi
+                            ./dependency-check.sh \
+                                --project ${APP_NAME} \
+                                --scan target \
+                                --format JSON \
+                                --format HTML \
+                                --out dependency-check-report
+                        """
+                    }
+                    post {
+                        always {
+                            archiveArtifacts artifacts: 'dependency-check-report.*', allowEmptyArchive: true
+                            // Publish dependency scan results
+                            dependencyCheckPublisher pattern: 'dependency-check-report.json'
+                        }
+                    }
+                }
+                
+                // SAST (Static Application Security Testing)
+                stage('SAST') {
+                    when {
+                        not { params.SKIP_SECURITY_SCAN }
+                    }
+                    steps {
+                        script {
+                            echo "=========================================="
+                            echo "Stage: Static Application Security Testing"
+                            echo "=========================================="
+                        }
+                        // SpotBugs security scan
+                        sh "mvn ${MAVEN_CLI_OPTS} spotbugs:check || true"
+                    }
+                    post {
+                        always {
+                            archiveArtifacts artifacts: 'target/spotbugsXml.xml', allowEmptyArchive: true
+                        }
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 8: Build Docker Image
+        // ----------------------------------------------------------------------
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Build Docker Image"
+                    echo "=========================================="
+                    
+                    // Xác định image tag
+                    def imageTag = params.CUSTOM_IMAGE_TAG ?: env.BUILD_NUMBER
+                    env.DOCKER_IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${imageTag}"
+                    
+                    echo "Building Docker image: ${DOCKER_IMAGE_TAG}"
+                }
+                
+                // Login vào Docker registry
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-registry-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
+                        echo \"\${DOCKER_PASS}\" | docker login -u \"\${DOCKER_USER}\" --password-stdin ${DOCKER_REGISTRY}
+                    """
+                }
+                
+                // Build Docker image
+                sh """
+                    docker build \
+                        --tag ${DOCKER_IMAGE_TAG} \
+                        --tag ${DOCKER_IMAGE_LATEST} \
+                        --file Dockerfile \
+                        .
+                """
+                
+                // Push image lên registry
+                sh """
+                    docker push ${DOCKER_IMAGE_TAG}
+                    docker push ${DOCKER_IMAGE_LATEST}
+                """
+            }
+            post {
+                success {
+                    echo "✅ Docker image built và pushed thành công!"
+                    script {
+                        // Lưu image tag để dùng ở deploy stage
+                        writeFile file: 'docker-image-tag.txt', text: env.DOCKER_IMAGE_TAG
+                        archiveArtifacts artifacts: 'docker-image-tag.txt'
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 9: Container Security Scan
+        // ----------------------------------------------------------------------
+        stage('Container Security Scan') {
+            when {
+                // Chỉ chạy sau khi build Docker image thành công
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+                not { params.SKIP_SECURITY_SCAN }
+            }
+            agent {
+                docker {
+                    image 'aquasec/trivy:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Container Security Scan"
+                    echo "=========================================="
+                }
+                // Scan Docker image với Trivy
+                sh """
+                    trivy image \
+                        --exit-code 0 \
+                        --severity HIGH,CRITICAL \
+                        --format json \
+                        --output trivy-report.json \
+                        ${DOCKER_IMAGE_TAG} || true
+                """
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'trivy-report.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 10: Deploy to Staging
+        // ----------------------------------------------------------------------
+        stage('Deploy to Staging') {
+            when {
+                // Chỉ deploy khi:
+                // 1. Parameter DEPLOY_ENV = 'staging' hoặc 'production'
+                // 2. Hoặc branch là main/develop
+                anyOf {
+                    expression { params.DEPLOY_ENV == 'staging' || params.DEPLOY_ENV == 'production' }
+                    branch 'main'
+                    branch 'develop'
+                }
+            }
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Deploy to Staging"
+                    echo "=========================================="
+                    
+                    // Load Kubernetes credentials
+                    withKubeConfig([credentialsId: 'k8s-staging-credentials', serverUrl: '']) {
+                        // Update deployment với image mới
+                        sh """
+                            kubectl set image deployment/${APP_NAME} \
+                                app=${DOCKER_IMAGE_TAG} \
+                                -n ${K8S_NAMESPACE_STAGING} || true
+                            
+                            # Hoặc apply full manifest
+                            # kubectl apply -f deploy/ -n ${K8S_NAMESPACE_STAGING}
+                            
+                            # Chờ rollout hoàn thành
+                            kubectl rollout status deployment/${APP_NAME} \
+                                -n ${K8S_NAMESPACE_STAGING} \
+                                --timeout=5m
+                            
+                            # Verify deployment
+                            kubectl get pods -n ${K8S_NAMESPACE_STAGING} -l app=${APP_NAME}
+                        """
+                    }
+                }
+            }
+            post {
+                success {
+                    echo "✅ Deployed to staging thành công!"
+                    script {
+                        // Update environment URL
+                        def stagingUrl = sh(
+                            script: "kubectl get ingress ${APP_NAME} -n ${K8S_NAMESPACE_STAGING} -o jsonpath='{.spec.rules[0].host}'",
+                            returnStdout: true
+                        ).trim()
+                        echo "Staging URL: https://${stagingUrl}"
+                    }
+                }
+                failure {
+                    echo "❌ Deploy to staging thất bại!"
+                    // Rollback nếu cần
+                    script {
+                        withKubeConfig([credentialsId: 'k8s-staging-credentials', serverUrl: '']) {
+                            sh """
+                                kubectl rollout undo deployment/${APP_NAME} -n ${K8S_NAMESPACE_STAGING}
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // Stage 11: Deploy to Production
+        // ----------------------------------------------------------------------
+        stage('Deploy to Production') {
+            when {
+                // Chỉ deploy khi:
+                // 1. Parameter DEPLOY_ENV = 'production'
+                // 2. Hoặc có tag (release)
+                anyOf {
+                    expression { params.DEPLOY_ENV == 'production' }
+                    tag pattern: "v\\d+\\.\\d+\\.\\d+", comparator: "REGEXP"
+                }
+            }
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Stage: Deploy to Production"
+                    echo "=========================================="
+                    echo "⚠️  PRODUCTION DEPLOYMENT - Cần approval!"
+                }
+                
+                // Manual approval step
+                input message: 'Xác nhận deploy lên Production?', ok: 'Deploy'
+                
+                // Deploy to production
+                withKubeConfig([credentialsId: 'k8s-prod-credentials', serverUrl: '']) {
+                    sh """
+                        kubectl set image deployment/${APP_NAME} \
+                            app=${DOCKER_IMAGE_TAG} \
+                            -n ${K8S_NAMESPACE_PROD}
+                        
+                        kubectl rollout status deployment/${APP_NAME} \
+                            -n ${K8S_NAMESPACE_PROD} \
+                            --timeout=10m
+                        
+                        kubectl get pods -n ${K8S_NAMESPACE_PROD} -l app=${APP_NAME}
+                    """
+                }
+            }
+            post {
+                success {
+                    echo "✅ Deployed to production thành công!"
+                }
+                failure {
+                    echo "❌ Deploy to production thất bại!"
+                    script {
+                        // Auto rollback on failure
+                        withKubeConfig([credentialsId: 'k8s-prod-credentials', serverUrl: '']) {
+                            sh """
+                                kubectl rollout undo deployment/${APP_NAME} -n ${K8S_NAMESPACE_PROD}
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. POST ACTIONS - Chạy sau khi pipeline hoàn thành
+    // --------------------------------------------------------------------------
+    post {
+        // Luôn chạy (dù success hay failure)
+        always {
+            script {
+                echo "=========================================="
+                echo "Pipeline Summary"
+                echo "=========================================="
+                echo "Build Number: ${env.BUILD_NUMBER}"
+                echo "Build Status: ${currentBuild.currentResult}"
+                echo "Duration: ${currentBuild.durationString}"
+                echo "=========================================="
+            }
+            
+            // Cleanup workspace
+            cleanWs()
+        }
+        
+        // Chỉ chạy khi thành công
+        success {
+            echo "✅ Pipeline thành công!"
+            script {
+                // Send success notification
+                if (env.SLACK_WEBHOOK_URL) {
+                    sh """
+                        curl -X POST ${SLACK_WEBHOOK_URL} \
+                            -H 'Content-Type: application/json' \
+                            -d '{
+                                "text": "✅ Pipeline #${env.BUILD_NUMBER} thành công trên branch ${env.BRANCH_NAME}",
+                                "attachments": [{
+                                    "color": "good",
+                                    "fields": [{
+                                        "title": "Build",
+                                        "value": "${env.BUILD_NUMBER}",
+                                        "short": true
+                                    }, {
+                                        "title": "Branch",
+                                        "value": "${env.BRANCH_NAME}",
+                                        "short": true
+                                    }]
+                                }]
+                            }'
+                    """
+                }
+            }
+        }
+        
+        // Chỉ chạy khi thất bại
+        failure {
+            echo "❌ Pipeline thất bại!"
+            script {
+                // Send failure notification
+                if (env.SLACK_WEBHOOK_URL) {
+                    sh """
+                        curl -X POST ${SLACK_WEBHOOK_URL} \
+                            -H 'Content-Type: application/json' \
+                            -d '{
+                                "text": "⚠️ Pipeline #${env.BUILD_NUMBER} thất bại trên branch ${env.BRANCH_NAME}",
+                                "attachments": [{
+                                    "color": "danger",
+                                    "fields": [{
+                                        "title": "Build",
+                                        "value": "${env.BUILD_NUMBER}",
+                                        "short": true
+                                    }, {
+                                        "title": "Branch",
+                                        "value": "${env.BRANCH_NAME}",
+                                        "short": true
+                                    }]
+                                }]
+                            }'
+                    """
+                }
+            }
+        }
+        
+        // Chạy khi unstable (có tests fail nhưng không block pipeline)
+        unstable {
+            echo "⚠️ Pipeline unstable - một số tests failed"
+        }
+        
+        // Chạy khi cleanup (sau tất cả post actions)
+        cleanup {
+            echo "🧹 Cleaning up..."
+        }
+    }
+}
+
+// ==============================================================================
+// KẾT THÚC FILE CONFIGURATION
+// ==============================================================================
+//
+// CÁCH SỬ DỤNG:
+// 1. Copy file này vào root của project với tên Jenkinsfile
+// 2. Cấu hình Jenkins credentials trong Jenkins UI:
+//    - docker-registry-url (Secret text)
+//    - docker-registry-credentials (Username/Password)
+//    - k8s-staging-credentials (Kubernetes config)
+//    - k8s-prod-credentials (Kubernetes config)
+//    - sonar-token (Secret text) - Optional
+//    - slack-webhook-url (Secret text) - Optional
+// 3. Cài đặt các Jenkins plugins cần thiết:
+//    - Docker Pipeline
+//    - Kubernetes Plugin
+//    - SonarQube Scanner
+//    - OWASP Dependency Check
+//    - AnsiColor
+//    - Timestamper
+// 4. Tạo Multibranch Pipeline job trong Jenkins
+// 5. Point job đến Git repository
+// 6. Jenkins sẽ tự động detect và chạy pipeline
+//
+// LƯU Ý:
+// - Pipeline sử dụng Declarative syntax (khuyến nghị)
+// - Có thể tùy chỉnh theo nhu cầu cụ thể
+// - Production deployment cần manual approval
+// - Security scans có thể tốn thời gian
+//
+// TÀI LIỆU THAM KHẢO:
+// - https://www.jenkins.io/doc/book/pipeline/syntax/
+// - https://www.jenkins.io/doc/book/pipeline/jenkinsfile/
+// ==============================================================================

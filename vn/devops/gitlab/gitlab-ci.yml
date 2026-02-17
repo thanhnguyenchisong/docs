@@ -1,0 +1,430 @@
+# ==============================================================================
+# GitLab CI/CD Pipeline Configuration - Ví dụ đầy đủ cho Spring Boot Application
+# ==============================================================================
+# File này định nghĩa pipeline CI/CD tự động cho ứng dụng bottleneck-resolve
+# Pipeline bao gồm: build, test, security scan, Docker build, và deployment
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. BIẾN TOÀN CỤC (Global Variables)
+# ------------------------------------------------------------------------------
+# Các biến này áp dụng cho tất cả jobs trong pipeline
+# Có thể override trong từng job nếu cần
+variables:
+  # Maven configuration
+  MAVEN_OPTS: "-Dmaven.test.skip=false -Dmaven.javadoc.skip=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+  
+  # Docker configuration
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_REGISTRY: "registry.gitlab.com"  # GitLab Container Registry
+  DOCKER_IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  
+  # Application configuration
+  APP_NAME: "bottleneck-resolve"
+  APP_VERSION: "0.0.1-SNAPSHOT"
+  
+  # Java version (phải khớp với pom.xml)
+  JAVA_VERSION: "21"
+
+# ------------------------------------------------------------------------------
+# 2. ĐỊNH NGHĨA CÁC STAGES (Pipeline Stages)
+# ------------------------------------------------------------------------------
+# Stages chạy tuần tự từ trên xuống dưới
+# Jobs trong cùng một stage chạy song song (parallel)
+stages:
+  - validate      # Kiểm tra code quality, format
+  - build         # Build ứng dụng
+  - test          # Chạy unit tests và integration tests
+  - security      # Security scanning (SAST, dependency check)
+  - package       # Đóng gói Docker image
+  - deploy-staging # Deploy lên môi trường staging
+  - deploy-prod   # Deploy lên môi trường production
+  - cleanup       # Dọn dẹp resources
+
+# ------------------------------------------------------------------------------
+# 3. CACHE CONFIGURATION
+# ------------------------------------------------------------------------------
+# Cache giúp tăng tốc build bằng cách lưu dependencies giữa các pipeline runs
+# Maven repository cache - lưu .m2/repository để không cần download lại dependencies
+.maven_cache: &maven_cache
+  cache:
+    key:
+      # Cache key dựa trên project name và branch
+      # Mỗi branch có cache riêng để tránh conflict
+      files:
+        - pom.xml
+      prefix: ${CI_PROJECT_NAME}
+    paths:
+      - .m2/repository/  # Maven local repository
+    policy: pull-push     # Pull cache trước khi chạy, push sau khi hoàn thành
+    # expire_in: 1 week  # Optional: tự động xóa cache sau 1 tuần
+
+# ------------------------------------------------------------------------------
+# 4. TEMPLATE JOBS (Job Templates)
+# ------------------------------------------------------------------------------
+# Định nghĩa các template để tái sử dụng, tránh lặp lại code
+
+# Template cho các jobs sử dụng Maven
+.maven_job_template: &maven_job_template
+  image: maven:3.9-eclipse-temurin-21-jammy  # Maven image với Java 21
+  <<: *maven_cache  # Kế thừa cache configuration
+  before_script:
+    # Kiểm tra Maven và Java version trước khi chạy
+    - mvn --version
+    - java -version
+    # Tạo thư mục .m2 nếu chưa có
+    - mkdir -p .m2/repository
+
+# Template cho các jobs build Docker image
+.docker_job_template: &docker_job_template
+  image: docker:24-dind  # Docker-in-Docker image
+  services:
+    - docker:24-dind  # Docker daemon service
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker info
+
+# ------------------------------------------------------------------------------
+# 5. VALIDATE STAGE - Kiểm tra code quality
+# ------------------------------------------------------------------------------
+
+# Job: Kiểm tra format và syntax của code
+validate:code-format:
+  <<: *maven_job_template
+  stage: validate
+  script:
+    # Kiểm tra code formatting (nếu có checkstyle)
+    - mvn $MAVEN_CLI_OPTS checkstyle:check || true
+    # Validate pom.xml
+    - mvn $MAVEN_CLI_OPTS validate
+    # Compile code để kiểm tra syntax errors
+    - mvn $MAVEN_CLI_OPTS compile
+  rules:
+    # Chạy trên tất cả branches và merge requests
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+  allow_failure: true  # Không fail pipeline nếu job này fail
+
+# ------------------------------------------------------------------------------
+# 6. BUILD STAGE - Build ứng dụng
+# ------------------------------------------------------------------------------
+
+# Job: Build JAR file từ source code
+build:jar:
+  <<: *maven_job_template
+  stage: build
+  script:
+    # Clean và build project, skip tests (sẽ chạy riêng ở test stage)
+    - mvn $MAVEN_CLI_OPTS clean package -DskipTests
+    # Kiểm tra JAR file đã được tạo
+    - ls -lh target/*.jar
+    # Hiển thị thông tin JAR
+    - jar tf target/${APP_NAME}-${APP_VERSION}.jar | head -20
+  artifacts:
+    # Lưu JAR file để sử dụng ở các jobs khác
+    paths:
+      - target/*.jar
+    # Giữ artifacts trong 1 tuần
+    expire_in: 1 week
+    # Chỉ giữ artifacts khi build thành công
+    when: on_success
+    # Reports để hiển thị trong GitLab UI
+    reports:
+      # Maven build report
+      dotenv: target/maven-build.env
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ------------------------------------------------------------------------------
+# 7. TEST STAGE - Chạy tests
+# ------------------------------------------------------------------------------
+
+# Job: Unit tests
+test:unit:
+  <<: *maven_job_template
+  stage: test
+  dependencies:
+    - build:jar  # Phụ thuộc vào build job để có JAR file
+  script:
+    # Chạy unit tests
+    - mvn $MAVEN_CLI_OPTS test
+  artifacts:
+    # Lưu test reports để hiển thị trong GitLab UI
+    reports:
+      junit: target/surefire-reports/TEST-*.xml  # JUnit test reports
+    # Lưu test logs
+    paths:
+      - target/surefire-reports/
+    expire_in: 1 week
+    when: always  # Giữ artifacts ngay cả khi tests fail
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  # Chạy trên tất cả branches và MRs
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# Job: Integration tests với database
+test:integration:
+  <<: *maven_job_template
+  stage: test
+  dependencies:
+    - build:jar
+  services:
+    # Khởi động PostgreSQL container cho integration tests
+    - name: postgres:15-alpine
+      alias: postgres-db
+  variables:
+    # Database connection variables cho tests
+    POSTGRES_DB: testdb
+    POSTGRES_USER: testuser
+    POSTGRES_PASSWORD: testpass
+    POSTGRES_HOST: postgres-db
+    POSTGRES_PORT: "5432"
+  script:
+    # Chạy integration tests với database
+    - mvn $MAVEN_CLI_OPTS verify -Dspring.profiles.active=test
+  artifacts:
+    reports:
+      junit: target/failsafe-reports/TEST-*.xml
+    paths:
+      - target/failsafe-reports/
+    expire_in: 1 week
+    when: always
+  rules:
+    # Chỉ chạy trên main branch và MRs
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  allow_failure: true  # Không block pipeline nếu integration tests fail
+
+# ------------------------------------------------------------------------------
+# 8. SECURITY STAGE - Security scanning
+# ------------------------------------------------------------------------------
+
+# Job: Dependency vulnerability scanning
+security:dependency-scan:
+  <<: *maven_job_template
+  stage: security
+  script:
+    # Sử dụng OWASP Dependency Check để scan dependencies
+    - |
+      if [ ! -f dependency-check.sh ]; then
+        curl -sSL https://raw.githubusercontent.com/owasp/dependency-check/main/dependency-check.sh -o dependency-check.sh
+        chmod +x dependency-check.sh
+      fi
+    - ./dependency-check.sh --project "$CI_PROJECT_NAME" --scan target --format JSON --format HTML
+  artifacts:
+    reports:
+      dependency_scanning: dependency-check-report.json
+    paths:
+      - dependency-check-report.html
+      - dependency-check-report.json
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  allow_failure: true
+
+# Job: SAST (Static Application Security Testing) - GitLab built-in
+security:sast:
+  stage: security
+  image: 
+    name: maven:3.9-eclipse-temurin-21-jammy
+  script:
+    - mvn $MAVEN_CLI_OPTS compile
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  allow_failure: true
+
+# Job: Container scanning - Scan Docker image
+security:container-scan:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    # Scan Docker image trước khi push
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL --format json --output container-scan-report.json $DOCKER_IMAGE_TAG || true
+  artifacts:
+    reports:
+      container_scanning: container-scan-report.json
+  dependencies:
+    - package:docker
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  allow_failure: true
+
+# ------------------------------------------------------------------------------
+# 9. PACKAGE STAGE - Đóng gói Docker image
+# ------------------------------------------------------------------------------
+
+# Job: Build và push Docker image
+package:docker:
+  <<: *docker_job_template
+  stage: package
+  dependencies:
+    - build:jar  # Cần JAR file từ build stage
+  script:
+    # Build Docker image với tags
+    - |
+      docker build \
+        --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA \
+        --tag $CI_REGISTRY_IMAGE:latest \
+        --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG \
+        .
+    # Push image lên GitLab Container Registry
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH =~ /^release\/.*/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - Dockerfile
+        - pom.xml
+        - src/**/*
+
+# ------------------------------------------------------------------------------
+# 10. DEPLOY STAGING STAGE - Deploy lên staging
+# ------------------------------------------------------------------------------
+
+# Job: Deploy lên Kubernetes staging environment
+deploy:staging:
+  stage: deploy-staging
+  image: bitnami/kubectl:latest
+  environment:
+    name: staging
+    url: https://staging.example.com
+    # Auto-stop sau 1 tuần không có deployment
+    auto_stop_in: 1 week
+  script:
+    # Update image tag trong Kubernetes deployment
+    - |
+      kubectl set image deployment/bottleneck-resolve \
+        app=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA \
+        -n bottleneck-resolve-staging
+    # Kiểm tra rollout status
+    - kubectl rollout status deployment/bottleneck-resolve -n bottleneck-resolve-staging
+    # Verify deployment
+    - kubectl get pods -n bottleneck-resolve-staging
+  rules:
+    # Chỉ deploy khi merge vào main branch
+    - if: $CI_COMMIT_BRANCH == "main"
+  # Cần manual approval trước khi deploy (optional)
+  # when: manual
+  # only:
+  #   - main
+
+# ------------------------------------------------------------------------------
+# 11. DEPLOY PRODUCTION STAGE - Deploy lên production
+# ------------------------------------------------------------------------------
+
+# Job: Deploy lên Kubernetes production environment
+deploy:production:
+  stage: deploy-prod
+  image: bitnami/kubectl:latest
+  environment:
+    name: production
+    url: https://app.example.com
+    # Production environment không tự động stop
+  script:
+    - |
+      kubectl set image deployment/bottleneck-resolve \
+        app=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA \
+        -n bottleneck-resolve-prod
+    - kubectl rollout status deployment/bottleneck-resolve -n bottleneck-resolve-prod
+    - kubectl get pods -n bottleneck-resolve-prod
+  rules:
+    # Chỉ deploy khi tag được tạo (release)
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  # Production deployment cần manual approval
+  when: manual
+  # Chỉ users có quyền mới có thể trigger
+  # allowed_pipelines:
+  #   - branches
+  #   - tags
+
+# ------------------------------------------------------------------------------
+# 12. CLEANUP STAGE - Dọn dẹp resources
+# ------------------------------------------------------------------------------
+
+# Job: Xóa old Docker images từ registry
+cleanup:docker-images:
+  stage: cleanup
+  image: curlimages/curl:latest
+  script:
+    # Xóa images cũ hơn 30 ngày (cần GitLab API token)
+    - |
+      curl --request DELETE \
+        --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$CI_REGISTRY_IMAGE/tags?name_regex=.*&older_than=30d"
+  rules:
+    # Chạy định kỳ hoặc sau khi deploy production
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
+  allow_failure: true
+
+# ------------------------------------------------------------------------------
+# 13. NOTIFICATION (Optional) - Gửi thông báo
+# ------------------------------------------------------------------------------
+
+# Job: Gửi notification khi pipeline thành công
+notify:success:
+  stage: .post  # .post stage chạy sau tất cả các stages khác
+  image: curlimages/curl:latest
+  script:
+    # Gửi notification đến Slack/Teams/Discord (ví dụ)
+    - |
+      curl -X POST $SLACK_WEBHOOK_URL \
+        -H 'Content-Type: application/json' \
+        -d "{\"text\":\"Pipeline $CI_PIPELINE_ID thành công trên branch $CI_COMMIT_REF_NAME\"}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
+  allow_failure: true
+
+# Job: Gửi notification khi pipeline fail
+notify:failure:
+  stage: .post
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl -X POST $SLACK_WEBHOOK_URL \
+        -H 'Content-Type: application/json' \
+        -d "{\"text\":\"⚠️ Pipeline $CI_PIPELINE_ID thất bại trên branch $CI_COMMIT_REF_NAME\"}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_failure
+  allow_failure: true
+
+# ==============================================================================
+# KẾT THÚC FILE CONFIGURATION
+# ==============================================================================
+# 
+# CÁCH SỬ DỤNG:
+# 1. Copy file này vào root của project với tên .gitlab-ci.yml
+# 2. Cấu hình các biến trong GitLab UI: Settings > CI/CD > Variables
+#    - CI_REGISTRY_USER, CI_REGISTRY_PASSWORD (hoặc dùng CI_JOB_TOKEN)
+#    - SLACK_WEBHOOK_URL (nếu dùng notification)
+#    - Kubernetes credentials (KUBECONFIG hoặc service account)
+# 3. Đảm bảo có GitLab Runner với Docker executor
+# 4. Push code lên GitLab để trigger pipeline
+#
+# LƯU Ý:
+# - Một số jobs có allow_failure: true để không block pipeline
+# - Production deployment cần manual approval (when: manual)
+# - Security scans có thể tốn thời gian, cân nhắc chạy song song
+# - Cache giúp tăng tốc build nhưng có thể chiếm storage
+#
+# TÀI LIỆU THAM KHẢO:
+# - https://docs.gitlab.com/ee/ci/yaml/
+# - https://docs.gitlab.com/ee/ci/pipelines/
+# ==============================================================================

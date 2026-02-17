@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Example — CSS, Responsive, A11y</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header role="banner">
+    <nav aria-label="Menu chính">
+      <ul class="nav-list">
+        <li><a href="#home">Trang chủ</a></li>
+        <li><a href="#layout">Layout</a></li>
+        <li><a href="#form">Form</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="home">
+    <h1>Project minh họa — Tài liệu Web</h1>
+    <p>Ví dụ chạy được: CSS Fundamentals, Flexbox/Grid, Responsive, Accessibility.</p>
+
+    <section id="layout" aria-labelledby="layout-title">
+      <h2 id="layout-title">Layout: Flexbox & Grid</h2>
+      <div class="flex-demo">
+        <div class="box">1</div>
+        <div class="box">2</div>
+        <div class="box">3</div>
+      </div>
+      <div class="grid-demo">
+        <div class="card">Card 1</div>
+        <div class="card">Card 2</div>
+        <div class="card">Card 3</div>
+        <div class="card">Card 4</div>
+      </div>
+    </section>
+
+    <section id="form" aria-labelledby="form-title">
+      <h2 id="form-title">Form có nhãn & focus</h2>
+      <form>
+        <label for="name">Họ tên</label>
+        <input type="text" id="name" name="name" required aria-required="true">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required aria-required="true">
+        <button type="submit">Gửi</button>
+      </form>
+    </section>
+  </main>
+
+  <footer role="contentinfo">
+    <p>Mở <code>index.html</code> trong trình duyệt hoặc chạy <code>npx serve .</code></p>
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>

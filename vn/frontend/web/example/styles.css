@@ -1,0 +1,130 @@
+/* CSS Fundamentals + Layout — minh họa tài liệu web */
+:root {
+  --color-primary: #2563eb;
+  --color-bg: #f8fafc;
+  --spacing: 1rem;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  background: var(--color-bg);
+  color: #1e293b;
+}
+
+header {
+  background: var(--color-primary);
+  color: white;
+  padding: var(--spacing);
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--spacing);
+  flex-wrap: wrap;
+}
+
+.nav-list a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.nav-list a:hover,
+.nav-list a:focus {
+  text-decoration: underline;
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--spacing);
+}
+
+/* Flexbox */
+.flex-demo {
+  display: flex;
+  gap: var(--spacing);
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.flex-demo .box {
+  flex: 1 1 120px;
+  min-width: 0;
+  background: #e2e8f0;
+  padding: 1rem;
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+/* Grid */
+.grid-demo {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing);
+  margin: 1rem 0;
+}
+
+.grid-demo .card {
+  background: white;
+  padding: 1rem;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Form */
+form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 320px;
+}
+
+input, button {
+  padding: 0.5rem;
+  font-size: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid #cbd5e1;
+}
+
+input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+button {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover, button:focus {
+  opacity: 0.9;
+  outline: 2px solid #1e40af;
+  outline-offset: 2px;
+}
+
+footer {
+  margin-top: 2rem;
+  padding: var(--spacing);
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+/* Responsive: mobile-first đã dùng flex-wrap / grid auto-fill */
+@media (max-width: 600px) {
+  .nav-list {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,18 @@
+# Minh hoạ GitLab CI — chạy pipeline mẫu
+# Đặt file này vào root của repo GitLab để thấy pipeline chạy
+
+stages:
+  - build
+  - test
+
+build-job:
+  stage: build
+  script:
+    - echo "Build stage - minh hoạ GitLab CI"
+    - uname -a
+
+test-job:
+  stage: test
+  script:
+    - echo "Test stage"
+    - echo "Pipeline chạy thành công"

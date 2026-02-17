@@ -1,0 +1,2 @@
+Hello Git Example.
+Thử: git status, git log, git diff

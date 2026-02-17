@@ -1,0 +1,50 @@
+/*
+ * ===================================================================
+ * tsconfig.json — Cấu hình TypeScript cho Angular project
+ * 📖 Lý thuyết: 01-typescript-basics.md (Decorators, strictNullChecks)
+ *               02-angular-fundamentals.md (Cấu trúc project)
+ * ===================================================================
+ */
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    /* === Bài 01: TypeScript cơ bản — strict mode === */
+    "strict": true,                        // Bật tất cả strict checks
+    "strictNullChecks": true,              // string không bao gồm null/undefined
+    "noImplicitAny": true,                 // Không cho phép type any ngầm
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* === Bài 01: Decorators — Angular dùng decorator cho Component, Injectable, ... === */
+    "experimentalDecorators": true,        // Bật decorator (@Component, @Injectable, ...)
+    "emitDecoratorMetadata": true,         // Emit metadata cho DI
+
+    /* === Module & target === */
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "dom"],
+    "outDir": "./dist/out-tsc",
+    "sourceMap": true,
+    "declaration": false,
+    "downlevelIteration": true,
+    "importHelpers": true,
+    "useDefineForClassFields": false,
+
+    /* === Path aliases — giúp import gọn === */
+    "baseUrl": "./",
+    "paths": {
+      "@core/*": ["src/app/core/*"],
+      "@shared/*": ["src/app/shared/*"],
+      "@features/*": ["src/app/features/*"],
+      "@env/*": ["src/environments/*"]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true                // Template type checking — bắt lỗi binding sai type
+  }
+}
