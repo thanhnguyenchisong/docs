@@ -3,12 +3,30 @@
 Angular dùng RxJS (Observable) cho HTTP, Router, Forms, EventEmitter. Hiểu cơ bản Observable và operators giúp xử lý async và data flow đúng cách.
 
 ## Mục lục
-1. [Observable cơ bản](#observable-cơ-bản)
-2. [Operators thường dùng](#operators-thường-dùng)
-3. [Subject và multicast](#subject-và-multicast)
-4. [async pipe và unsubscribe](#async-pipe-và-unsubscribe)
-5. [Kết hợp nhiều Observable](#kết-hợp-nhiều-observable)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [RxJS/Observable trong Angular là gì? (Cho người mới)](#rxjsobservable-trong-angular-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: HTTP + async pipe và debounce search](#ví-dụ-trực-quan-http--async-pipe-và-debounce-search)
+3. [Observable cơ bản](#observable-cơ-bản)
+4. [Operators thường dùng](#operators-thường-dùng)
+5. [Subject và multicast](#subject-và-multicast)
+6. [async pipe và unsubscribe](#async-pipe-và-unsubscribe)
+7. [Kết hợp nhiều Observable](#kết-hợp-nhiều-observable)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## RxJS/Observable trong Angular là gì? (Cho người mới)
+
+- **Observable** (RxJS) = “luồng” giá trị theo thời gian: có thể emit 0, 1 hoặc nhiều giá trị, sau đó complete hoặc error. Bạn **subscribe** để nhận từng giá trị. Angular dùng Observable cho **HTTP** (một response), **Router** (params thay đổi), **Forms** (valueChanges), **EventEmitter** (output).
+- **Subscribe** = đăng ký nhận giá trị. Khi không cần nữa phải **unsubscribe** (hoặc dùng **async pipe** trong template — pipe tự unsubscribe khi component destroy) để tránh rò rỉ bộ nhớ.
+- **Operators** (map, filter, debounceTime, switchMap, catchError…) = hàm biến đổi hoặc kết hợp Observable. Ví dụ: `valueChanges.pipe(debounceTime(300), switchMap(q => api.search(q)))` = đợi user ngừng gõ 300ms rồi mới gọi API, và chỉ giữ kết quả request mới nhất.
+
+---
+
+## Ví dụ trực quan: HTTP + async pipe và debounce search
+
+**Async pipe:** Trong component giữ `products$ = this.productService.getAll();` (Observable), trong template viết `*ngFor="let p of products$ | async"`. Bạn **không** cần subscribe trong class — async pipe tự subscribe và khi component destroy sẽ unsubscribe. Trên màn hình danh sách sản phẩm vẫn hiển thị khi API trả về. Đó là “Observable → template” trực quan.
+
+**Debounce search:** FormControl `search = new FormControl('')`. Trong class: `this.search.valueChanges.pipe(debounceTime(300), distinctUntilChanged()).subscribe(q => console.log('Search:', q));`. Mở app, gõ nhanh vào ô search — trong Console chỉ in ra sau khi bạn **ngừng gõ khoảng 300ms**. Đó là debounce trực quan: giảm số lần gọi (ví dụ API) khi user đang gõ.
 
 ---
 

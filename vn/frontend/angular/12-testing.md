@@ -3,11 +3,29 @@
 Angular hỗ trợ **unit test** (Jasmine + Karma, hoặc Jest) và **e2e** (trước đây Protractor, hiện Cypress/Playwright phổ biến). Bài tóm tắt cách test component, service và e2e cơ bản.
 
 ## Mục lục
-1. [Unit test với Jasmine/Karma](#unit-test-với-jasminekarma)
-2. [Test component](#test-component)
-3. [Test service](#test-service)
-4. [E2E (Cypress / Playwright)](#e2e-cypress--playwright)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Testing trong Angular là gì? (Cho người mới)](#testing-trong-angular-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Chạy ng test và xem một test pass](#ví-dụ-trực-quan-chạy-ng-test-và-xem-một-test-pass)
+3. [Unit test với Jasmine/Karma](#unit-test-với-jasminekarma)
+4. [Test component](#test-component)
+5. [Test service](#test-service)
+6. [E2E (Cypress / Playwright)](#e2e-cypress--playwright)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Testing trong Angular là gì? (Cho người mới)
+
+- **Unit test** = kiểm tra từng phần code (service, component) **tách riêng**: giả lập dependency (mock), gọi hàm hoặc render component, so sánh kết quả mong đợi. Angular dùng **Jasmine** (cú pháp describe/it/expect) và **Karma** (chạy test trong browser) hoặc **Jest**. File test thường đặt cạnh file nguồn, tên `*.spec.ts`.
+- **E2E (end-to-end)** = kiểm tra toàn bộ luồng như user thật: mở trang, click, nhập liệu, kiểm tra nội dung hiển thị. Công cụ phổ biến: **Cypress**, **Playwright**. Chạy riêng với `npm run e2e` hoặc tương đương.
+- **TestBed** = môi trường test Angular: cấu hình module, inject service, tạo component. **HttpTestingController** = giả lập HTTP: expect request nào được gửi và trả response giả — không cần server thật.
+
+---
+
+## Ví dụ trực quan: Chạy ng test và xem một test pass
+
+1. Trong project Angular chạy `ng test` (hoặc `npm test`). Trình duyệt mở, Karma chạy các file `*.spec.ts`.
+2. Mặc định `app.component.spec.ts` có sẵn: test đơn giản như “should create”, “should have title”. Bạn sẽ thấy trong tab terminal hoặc browser: **X tests, Y passed** (hoặc danh sách describe/it với dấu tick xanh).
+3. **Thử sửa:** Mở `app.component.spec.ts`, trong một `it('...')` đổi `expect(component.title).toBe('...')` thành một giá trị sai — chạy lại `ng test`, test đó **fail** (màu đỏ, thông báo expected vs actual). Đổi lại đúng → pass. Đó là “viết test → chạy → thấy kết quả” trực quan.
 
 ---
 

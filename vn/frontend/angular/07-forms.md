@@ -3,11 +3,37 @@
 Angular có hai cách làm form: **Template-driven** (gắn với template, đơn giản) và **Reactive Forms** (logic trong class, dễ test và validate phức tạp). Ứng dụng lớn thường dùng Reactive Forms.
 
 ## Mục lục
-1. [Template-driven forms](#template-driven-forms)
-2. [Reactive Forms](#reactive-forms)
-3. [Validation](#validation)
-4. [FormArray và form động](#formarray-và-form-động)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Form trong Angular là gì? (Cho người mới)](#form-trong-angular-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Form đăng nhập và validation](#ví-dụ-trực-quan-form-đăng-nhập-và-validation)
+3. [Template-driven forms](#template-driven-forms)
+4. [Reactive Forms](#reactive-forms)
+5. [Validation](#validation)
+6. [FormArray và form động](#formarray-và-form-động)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Form trong Angular là gì? (Cho người mới)
+
+- **Form** = thu thập và kiểm tra dữ liệu từ user (đăng nhập, đăng ký, tạo sản phẩm…). Angular cung cấp **FormsModule** (template-driven) và **ReactiveFormsModule** (reactive forms) để gắn input với model, **validation** (bắt buộc, email, độ dài…), và xử lý submit.
+- **Template-driven:** Form được “kéo” từ template: dùng `ngModel`, `name`, `#form="ngForm"`. Đơn giản cho form nhỏ; logic validation nằm trong template (required, minlength…).
+- **Reactive Forms:** Form được **tạo trong class** (FormGroup, FormControl), template chỉ bind qua `[formGroup]` và `formControlName`. Dễ test, dễ validate phức tạp (custom validator, form động, FormArray). Ứng dụng lớn thường chọn Reactive Forms.
+
+---
+
+## Ví dụ trực quan: Form đăng nhập và validation
+
+Tạo component `ng g c login`. Import `ReactiveFormsModule`, trong class tạo form:
+
+```typescript
+form = this.fb.group({
+  email: ['', [Validators.required, Validators.email]],
+  password: ['', [Validators.required, Validators.minLength(6)]],
+});
+constructor(private fb: FormBuilder) {}
+```
+
+Template: `<form [formGroup]="form" (ngSubmit)="onSubmit()">` (trong class `onSubmit() { console.log(this.form.value); }`), hai input `formControlName="email"` và `formControlName="password"`, nút submit `[disabled]="form.invalid"`. **Trên màn hình:** Ô email để trống hoặc sai định dạng → nút “Đăng nhập” bị disabled. Nhập đúng email và mật khẩu ≥ 6 ký tự → nút bật, bấm submit in ra object `{ email, password }`. Thêm `<span *ngIf="form.get('email')?.invalid && form.get('email')?.touched">Email không hợp lệ</span>` — bạn sẽ thấy thông báo lỗi khi rời khỏi ô email. Đó là form + validation trực quan.
 
 ---
 

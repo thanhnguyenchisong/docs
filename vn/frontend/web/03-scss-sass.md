@@ -3,13 +3,51 @@
 Sass (SCSS) bổ sung biến, nesting, mixins, functions, module — giúp CSS dễ bảo trì và tái sử dụng. Senior cần dùng thành thạo trong project thật.
 
 ## Mục lục
-1. [Biến (variables)](#biến-variables)
-2. [Nesting](#nesting)
-3. [Mixins](#mixins)
-4. [Functions](#functions)
-5. [Partials và import](#partials-và-import)
-6. [Best practices](#best-practices)
-7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [SCSS/Sass là gì? (Cho người mới)](#scsssass-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Trước và sau khi dùng SCSS](#ví-dụ-trực-quan-trước-và-sau-khi-dùng-scss)
+3. [Biến (variables)](#biến-variables)
+4. [Nesting](#nesting)
+5. [Mixins](#mixins)
+6. [Functions](#functions)
+7. [Partials và import](#partials-và-import)
+8. [Best practices](#best-practices)
+9. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## SCSS/Sass là gì? (Cho người mới)
+
+- **CSS thuần** không có biến (màu, cỡ chữ lặp đi lặp lại), không có “hàm” hay “đoạn code dùng lại” — file lớn rất khó sửa (đổi một màu chủ đạo phải tìm thay từng chỗ).
+- **Sass** là ngôn ngữ mở rộng CSS: viết file `.scss`, sau đó **biên dịch** (compile) ra file `.css` để trình duyệt đọc. **SCSS** là cú pháp Sass giống CSS nhất (dùng dấu `{}` và `;`), nên thường gọi “SCSS” khi nói đến file.
+- Bạn được thêm: **biến** (màu, spacing, breakpoint), **nesting** (lồng selector theo cấu trúc HTML), **mixins** (đoạn CSS tái sử dụng, có tham số), **functions** (tính toán giá trị như rem, làm tối/sáng màu). Angular CLI đã hỗ trợ SCSS: khi tạo project hoặc component chọn style SCSS là xong.
+
+---
+
+## Ví dụ trực quan: Trước và sau khi dùng SCSS
+
+**Trước (CSS thuần):** Màu `#1976d2` và padding `8px` lặp nhiều chỗ. Đổi theme = sửa rất nhiều dòng.
+
+```css
+.btn { background: #1976d2; padding: 8px 16px; }
+.card { border: 1px solid #1976d2; }
+.link { color: #1976d2; }
+```
+
+**Sau (SCSS):** Một biến `$primary`, đổi một dòng là đổi toàn bộ. Nesting giúp nhóm style của `.card` và con `.card__title` trong một khối.
+
+```scss
+$primary: #1976d2;
+$spacing: 8px;
+
+.btn { background: $primary; padding: $spacing $spacing * 2; }
+.card {
+  border: 1px solid $primary;
+  &__title { font-size: 1.25rem; }
+}
+.link { color: $primary; }
+```
+
+**Thử:** Trong project Angular, tạo component với `ng g c demo-scss --style=scss`. Trong file `demo-scss.component.scss` đặt `$color: #28a745;` rồi dùng trong `.demo { color: $color; }` — bạn sẽ thấy SCSS biên dịch ra CSS khi `ng serve`. Đổi `$color` và lưu → giao diện đổi theo.
 
 ---
 

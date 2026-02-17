@@ -3,12 +3,30 @@
 Router Angular quản lý điều hướng theo URL: map URL → component, hỗ trợ lazy load, guards, resolvers.
 
 ## Mục lục
-1. [Cấu hình routes](#cấu-hình-routes)
-2. [RouterOutlet và links](#routeroutlet-và-links)
-3. [Lazy loading](#lazy-loading)
-4. [Guards](#guards)
-5. [Resolvers](#resolvers)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Routing là gì? (Cho người mới)](#routing-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Đổi URL → đổi nội dung trên màn hình](#ví-dụ-trực-quan-đổi-url--đổi-nội-dung-trên-màn-hình)
+3. [Cấu hình routes](#cấu-hình-routes)
+4. [RouterOutlet và links](#routeroutlet-và-links)
+5. [Lazy loading](#lazy-loading)
+6. [Guards](#guards)
+7. [Resolvers](#resolvers)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Routing là gì? (Cho người mới)
+
+- **Routing** = điều hướng theo **URL**: mỗi đường dẫn (ví dụ `/home`, `/products`, `/products/1`) tương ứng với một “trang” (component). User click link hoặc gõ URL → Angular Router đổi nội dung hiển thị (thường là vùng `<router-outlet>`) **không tải lại cả trang** — đây là SPA (Single Page Application).
+- **Route** = một cấu hình: path (đường dẫn) + component (hoặc `loadComponent` lazy). **RouterOutlet** = vị trí trong template mà component của route hiện tại được vẽ. **routerLink** = link không reload trang, chỉ đổi route.
+- Khi bạn mở `/products`, Router load component gắn với route `products`; khi chuyển sang `/products/1`, component có thể đổi (product-detail) và nhận param `id = 1`. Toàn bộ do `app.routes.ts` (hoặc file tương đương) định nghĩa.
+
+---
+
+## Ví dụ trực quan: Đổi URL → đổi nội dung trên màn hình
+
+1. Trong `app.routes.ts` thêm hai route: `{ path: 'page-a', loadComponent: () => import('./page-a.component').then(m => m.PageAComponent) }` và tương tự `page-b` (tạo hai component đơn giản: mỗi cái template chỉ có `<p>Trang A</p>` và `<p>Trang B</p>`).
+2. Trong `app.component.html` đặt `<router-outlet></router-outlet>` và hai link: `<a routerLink="/page-a">Trang A</a>`, `<a routerLink="/page-b">Trang B</a>`.
+3. Chạy `ng serve`, mở `/page-a` — bạn thấy “Trang A”. Đổi URL thành `/page-b` (hoặc click link Trang B) — nội dung chuyển thành “Trang B”, **không reload trang**. Đó là routing trực quan: URL thay đổi → component trong outlet thay đổi.
 
 ---
 

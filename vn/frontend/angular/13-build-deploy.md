@@ -3,12 +3,30 @@
 Bài này tóm tắt môi trường (environments), lệnh build, SSR (Server-Side Rendering) và cách deploy ứng dụng Angular (static host, Docker).
 
 ## Mục lục
-1. [Environments](#environments)
-2. [Build](#build)
-3. [SSR và SSG](#ssr-và-ssg)
-4. [i18n — Đa ngôn ngữ](#i18n--đa-ngôn-ngữ)
-5. [Deploy](#deploy)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Build và Deploy là gì? (Cho người mới)](#build-và-deploy-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: ng build và thư mục dist](#ví-dụ-trực-quan-ng-build-và-thư-mục-dist)
+3. [Environments](#environments)
+4. [Build](#build)
+5. [SSR và SSG](#ssr-và-ssg)
+6. [i18n — Đa ngôn ngữ](#i18n--đa-ngôn-ngữ)
+7. [Deploy](#deploy)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Build và Deploy là gì? (Cho người mới)
+
+- **Build** = biến code TypeScript/Angular thành file mà trình duyệt chạy được: HTML, CSS, JavaScript (đã minify, bundle). Lệnh `ng build` (hoặc `ng build --configuration=production`) tạo ra thư mục **dist/** chứa các file tĩnh. **ng serve** cũng “build” nhưng trong bộ nhớ và dùng cho phát triển (hot reload).
+- **Environments** = cấu hình khác nhau theo môi trường (dev/prod): ví dụ URL API dev là `http://localhost:3000`, prod là `https://api.example.com`. Build production thường thay file `environment.ts` bằng `environment.prod.ts` (fileReplacements trong angular.json).
+- **Deploy** = đưa thư mục dist lên máy chủ: có thể là **static hosting** (Netlify, Vercel, S3 + CloudFront), **server** chạy Node (khi dùng SSR), hoặc **Docker** (container chứa file tĩnh hoặc server).
+
+---
+
+## Ví dụ trực quan: ng build và thư mục dist
+
+1. Trong project chạy `ng build` (hoặc `ng build --configuration=production`). Terminal in ra đường dẫn output (thường `dist/<project-name>/`).
+2. Mở thư mục **dist/...**: bạn thấy **index.html** và các file **main-xxx.js**, **polyfills-xxx.js**, **styles-xxx.css**… — đây là toàn bộ app đã được biên dịch và gộp. Mở **index.html** bằng trình duyệt (hoặc chạy `npx serve dist/<project-name>`) — ứng dụng chạy giống khi dùng `ng serve`, nhưng không cần Angular CLI. Đó là “build = ra sản phẩm tĩnh”.
+3. **Deploy thử:** Đẩy nội dung thư mục dist lên bất kỳ host tĩnh nào (Netlify drag-and-drop thư mục dist, hoặc `aws s3 sync dist/ s3://bucket --acl public-read`). Truy cập URL host — bạn thấy app chạy trên mạng. Đó là deploy trực quan.
 
 ---
 

@@ -3,12 +3,39 @@
 Directives thay đổi cấu trúc hoặc hành vi của DOM; Pipes biến đổi giá trị hiển thị trong template.
 
 ## Mục lục
-1. [Structural directives](#structural-directives)
-2. [Attribute directives](#attribute-directives)
-3. [Custom directive](#custom-directive)
-4. [Built-in Pipes](#built-in-pipes)
-5. [Custom Pipe](#custom-pipe)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Directive và Pipe là gì? (Cho người mới)](#directive-và-pipe-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: ngIf, ngFor và pipe date](#ví-dụ-trực-quan-ngif-ngfor-và-pipe-date)
+3. [Structural directives](#structural-directives)
+4. [Attribute directives](#attribute-directives)
+5. [Custom directive](#custom-directive)
+6. [Built-in Pipes](#built-in-pipes)
+7. [Custom Pipe](#custom-pipe)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Directive và Pipe là gì? (Cho người mới)
+
+- **Directive** = chỉ thị “làm gì đó” với một element hoặc component. **Structural directive** (có dấu `*`) thay đổi **cấu trúc** DOM: thêm/xóa nhánh (ví dụ `*ngIf` = chỉ hiển thị khi điều kiện đúng; `*ngFor` = lặp danh sách). **Attribute directive** thay đổi giao diện hoặc hành vi (ví dụ `ngClass` thêm/bớt class, `ngModel` two-way binding).
+- **Pipe** = biến đổi **giá trị hiển thị** trong template trước khi in ra: ví dụ `{{ date | date:'dd/MM/yyyy' }}` in ngày theo định dạng; `{{ price | currency:'VND' }}` in tiền tệ. Pipe không thay đổi dữ liệu gốc trong class, chỉ thay đổi cách hiển thị.
+- Kết hợp: một template có thể dùng nhiều directive và pipe — ví dụ `*ngFor` lặp list, mỗi item qua pipe `date` hoặc `currency` để hiển thị đẹp.
+
+---
+
+## Ví dụ trực quan: ngIf, ngFor và pipe date
+
+Trong bất kỳ component nào, thêm vào template:
+
+```html
+<p *ngIf="showMessage">Bạn đang thấy dòng này.</p>
+<button (click)="showMessage = !showMessage">Bật/Tắt</button>
+
+<ul>
+  <li *ngFor="let item of items">{{ item.name }} - {{ item.date | date:'dd/MM/yyyy' }}</li>
+</ul>
+```
+
+Trong class: `showMessage = true;` và `items = [{ name: 'A', date: new Date() }, { name: 'B', date: new Date() }];` (cần `CommonModule` trong imports). **Trên màn hình:** Một đoạn text và nút; bấm nút thì đoạn text biến mất/xuất hiện (ngIf). Bên dưới là list hai dòng, mỗi dòng có tên và ngày định dạng dd/MM/yyyy (ngFor + pipe date). Đổi `items` trong class (thêm/xóa phần tử) và lưu → list trên trang thay đổi. Đó là directive + pipe trực quan.
 
 ---
 

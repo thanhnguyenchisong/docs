@@ -4,6 +4,14 @@ Sau khi học xong 01–09, dùng checklist này để tự hỏi/đáp. **Trả
 
 ---
 
+## Cho người mới: Dùng checklist này thế nào?
+
+- **Checklist** là danh sách câu hỏi thường gặp khi phỏng vấn senior. Bạn không cần học “thuộc lòng” — mỗi câu nên **tự trả lời bằng lời** hoặc viết ra, rồi đối chiếu với bài tương ứng (01–09). Câu nào chưa trả lời được thì mở lại bài đó, đọc phần “Cho người mới” và “Ví dụ trực quan” để nắm lại.
+- **Thứ tự hợp lý:** Học xong bài nào thì đánh dấu phần checklist của bài đó (ví dụ học xong 01 CSS → làm phần “CSS & Layout”). Khi ôn trước phỏng vấn, đọc lần lượt từng mục và tự hỏi/đáp; câu nào vướng thì xem lại ví dụ trong bài.
+- **Ví dụ trực quan khi ôn:** Với mỗi chủ đề (Flexbox, Grid, a11y, performance…), mở lại file demo đã làm trong bài (demo-css.html, demo-layout.html, demo-responsive.html…) và vừa xem vừa giải thích: “Tại sao dùng property này?”, “Thử đổi thì sao?” — giúp nhớ lâu và trả lời phỏng vấn tự tin hơn.
+
+---
+
 ## CSS & Layout
 
 - [ ] **Specificity** tính thế nào? Làm sao override rule có specificity cao (không dùng !important)?

@@ -20,6 +20,36 @@ TypeScript là ngôn ngữ chính khi viết ứng dụng Angular. Bài này tó
 - **Thực tế:** Bạn viết file `.ts`, sau đó build (biên dịch) thành `.js` để trình duyệt chạy. Angular CLI đã lo việc build, bạn chỉ cần viết code TypeScript.
 - Nếu bạn đã biết JavaScript, TypeScript sẽ quen nhanh — coi như thêm chú thích kiểu và một số cú pháp mới (interface, enum, generic…). Nếu chưa biết JS, nên học JS cơ bản trước (biến, hàm, array, object) rồi quay lại bài này.
 
+### Ví dụ trực quan 1: Chạy TypeScript và xem kết quả trong console
+
+Bạn có thể chạy đoạn sau trong [TypeScript Playground](https://www.typescriptlang.org/play) (mở link → dán code → xem bên phải): TypeScript báo lỗi nếu gán sai kiểu. Hoặc trong project Angular: tạo file `src/app/demo-ts.ts` tạm, dán code rồi gọi từ `app.component.ts` trong `ngOnInit()` với `console.log(...)` — mở F12 → Console để xem.
+
+```typescript
+interface User {
+  id: number;
+  name: string;
+}
+
+const user: User = { id: 1, name: 'Minh' };
+console.log('User:', user.name);           // In ra: User: Minh
+
+// Nếu bạn gõ: user.email → editor/compiler báo lỗi vì User không có thuộc tính email
+// Nếu bạn gõ: user.id = 'abc' → lỗi vì id phải là number
+```
+
+**Kết quả trên màn hình (Console):** `User: Minh`. Ý nghĩa: interface `User` bắt buộc object có `id` (số) và `name` (chuỗi); TypeScript kiểm tra giúp bạn trước khi chạy.
+
+### Ví dụ trực quan 2: Component Angular — từ code đến màn hình
+
+Trong Angular, bạn viết **template** (HTML nhỏ) và **class** (dữ liệu + logic). Trình duyệt hiển thị đúng nội dung bạn gắn vào template. Ví dụ:
+
+- **Code (trong component):**
+  - Template: `template: '<p>Xin chào, {{ name }}!</p>'`
+  - Class: `name = 'Nguyễn Văn A';`
+- **Trên màn hình bạn thấy:** `Xin chào, Nguyễn Văn A!`
+
+Khi bạn đổi `name = 'Nguyễn Văn B'` và lưu file, trang tự reload (trong chế độ `ng serve`) và chữ trên màn hình đổi thành "Nguyễn Văn B". Đó là **data binding** — một phần của bài 03; ở đây chỉ cần cảm nhận: TypeScript (biến `name`) và template ({{ name }}) kết nối trực tiếp với giao diện.
+
 ---
 
 ## Types cơ bản
@@ -43,6 +73,8 @@ function log(msg: string): void {
   console.log(msg);
 }
 ```
+
+**Thử trong Console:** Gọi `log('Hello')` → in ra `Hello`. Gọi `log(123)` → TypeScript báo lỗi (đòi hỏi `string`). Đó là “trực quan” của type checking.
 
 ---
 

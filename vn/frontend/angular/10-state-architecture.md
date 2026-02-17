@@ -3,11 +3,29 @@
 Quản lý state (dữ liệu dùng chung, cache, UI state) ảnh hưởng lớn đến cấu trúc ứng dụng Angular. Bài này tóm tắt các hướng tiếp cận và best practices.
 
 ## Mục lục
-1. [State ở đâu?](#state-ở-đâu)
-2. [Service-based state](#service-based-state)
-3. [NgRx overview](#ngrx-overview)
-4. [Best practices](#best-practices)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [State là gì? (Cho người mới)](#state-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Service chứa giỏ hàng, hai component cùng đọc](#ví-dụ-trực-quan-service-chứa-giỏ-hàng-hai-component-cùng-đọc)
+3. [State ở đâu?](#state-ở-đâu)
+4. [Service-based state](#service-based-state)
+5. [NgRx overview](#ngrx-overview)
+6. [Best practices](#best-practices)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## State là gì? (Cho người mới)
+
+- **State** = dữ liệu ứng dụng đang “giữ” tại một thời điểm: danh sách sản phẩm, user đăng nhập, giỏ hàng, trạng thái loading, theme (sáng/tối). State thay đổi khi user thao tác hoặc khi API trả về.
+- **State ở đâu?** Có thể trong **component** (chỉ component đó dùng), trong **service** (nhiều component dùng chung — ví dụ CartService), hoặc trong **store** (NgRx) khi state phức tạp, nhiều nguồn cập nhật. Nguyên tắc: đặt state **gần nơi dùng**; chỉ đưa lên service/store khi cần chia sẻ hoặc quản lý tập trung.
+- **Service-based state** = dùng một service (thường `providedIn: 'root'`) chứa signal hoặc BehaviorSubject, component inject và đọc/ghi. Đơn giản, đủ cho nhiều app. **NgRx** = mô hình Redux (store, actions, reducers, effects) — dùng khi state lớn, cần trace và quy chuẩn chặt.
+
+---
+
+## Ví dụ trực quan: Service chứa giỏ hàng, hai component cùng đọc
+
+1. Tạo `CartService` với `providedIn: 'root'`, bên trong `items = signal<Item[]>([])` và method `add(item)`, `remove(id)` (dùng `this.items.update(...)`).
+2. Component A: template có nút “Thêm vào giỏ”, click gọi `cartService.add(product)`. Component B: template hiển thị `{{ cartService.items().length }}` và list `*ngFor="let i of cartService.items()"`.
+3. Đặt A và B trên cùng một trang (ví dụ A là danh sách sản phẩm, B là icon giỏ hàng ở header). Khi bấm “Thêm vào giỏ” ở A, **số lượng và danh sách trong B cập nhật ngay** — vì cả hai cùng đọc một signal trong service. Đó là “state dùng chung” trực quan. Thử thêm nút “Xóa” trong B gọi `cartService.remove(id)` — list ở cả A và B đều cập nhật.
 
 ---
 

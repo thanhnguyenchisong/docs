@@ -3,20 +3,36 @@
 NgRx là thư viện quản lý state cho Angular, dựa trên mô hình **Redux**: state tập trung, thay đổi qua **actions** và **reducers**, side effect qua **effects**. Bài này trình bày cách dùng NgRx từ cài đặt đến pattern thực tế.
 
 ## Mục lục
-1. [NgRx là gì?](#ngrx-là-gì)
-2. [Cài đặt và cấu hình](#cài-đặt-và-cấu-hình)
-3. [Actions](#actions)
-4. [Reducers](#reducers)
-5. [Selectors](#selectors)
-6. [Effects](#effects)
-7. [Feature state và Store](#feature-state-và-store)
-8. [Dùng trong Component](#dùng-trong-component)
-9. [Best practices và Testing](#best-practices-và-testing)
-10. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [NgRx là gì? (Cho người mới)](#ngrx-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Dispatch action → reducer → màn hình đổi](#ví-dụ-trực-quan-dispatch-action--reducer--màn-hình-đổi)
+3. [NgRx là gì? (chi tiết)](#ngrx-là-gì-chi-tiết)
+4. [Cài đặt và cấu hình](#cài-đặt-và-cấu-hình)
+5. [Actions](#actions)
+6. [Reducers](#reducers)
+7. [Selectors](#selectors)
+8. [Effects](#effects)
+9. [Feature state và Store](#feature-state-và-store)
+10. [Dùng trong Component](#dùng-trong-component)
+11. [Best practices và Testing](#best-practices-và-testing)
+12. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
-## NgRx là gì?
+## NgRx là gì? (Cho người mới)
+
+- **NgRx** = thư viện quản lý **state** theo kiểu **Redux**: toàn bộ state (hoặc từng feature) nằm trong **Store** (một object read-only). Thay vì component gọi service và set biến, component **dispatch action** (ví dụ “thêm vào giỏ”), **reducer** (hàm thuần) tính state mới từ state cũ + action, **selector** đọc state để hiển thị. **Effect** xử lý việc bất đồng bộ (gọi API), xong dispatch action success/error để reducer cập nhật state.
+- **Khi nào dùng:** State phức tạp, nhiều nơi cập nhật, cần trace “action nào → state thay đổi thế nào” (debug, time-travel). Form đơn giản, CRUD nhỏ thường **service + signal** (bài 10) là đủ; không bắt buộc NgRx.
+- **Luồng trực quan:** Component dispatch action → Reducer cập nhật state → Component đọc qua selector → template hiển thị. Nếu cần API: Effect lắng action → gọi API → dispatch action kết quả → Reducer cập nhật.
+
+---
+
+## Ví dụ trực quan: Dispatch action → reducer → màn hình đổi
+
+Sau khi cài NgRx và tạo một slice đơn giản (ví dụ counter: action `increment`, reducer cộng 1 vào state, selector `selectCount`). Trong component: `count$ = this.store.select(selectCount);` và template `{{ count$ | async }}`, nút bấm `(click)="store.dispatch(increment())"`. Chạy app: mỗi lần bấm nút, số trên màn hình tăng — **dispatch action** → **reducer** thay đổi state → **selector** trả giá trị mới → **async pipe** cập nhật view. Đó là luồng NgRx trực quan. Mở **Redux DevTools** (extension trình duyệt) khi có @ngrx/store-devtools: mỗi lần dispatch bạn thấy action và state trước/sau — hỗ trợ debug.
+
+---
+
+## NgRx là gì? (chi tiết)
 
 - **Store**: Một nguồn sự thật (single source of truth) — state toàn app (hoặc từng feature) nằm trong object read-only.
 - **Action**: Sự kiện mô tả “điều gì xảy ra” (ví dụ `[Products] Load`, `[Cart] Add Item`). Component hoặc Effect **dispatch** action.

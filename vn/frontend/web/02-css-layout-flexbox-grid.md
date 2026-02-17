@@ -3,11 +3,80 @@
 Flexbox và Grid là hai công cụ layout chính. Senior cần biết khi nào dùng từng cái và thuộc tính quan trọng.
 
 ## Mục lục
-1. [Flexbox](#flexbox)
-2. [Grid](#grid)
-3. [Positioning](#positioning)
-4. [Khi nào dùng Flexbox vs Grid](#khi-nào-dùng-flexbox-vs-grid)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Ví dụ trực quan: Flexbox + Grid trong một trang](#ví-dụ-trực-quan-flexbox--grid-trong-một-trang)
+2. [Flexbox](#flexbox)
+3. [Grid](#grid)
+4. [Positioning](#positioning)
+5. [Khi nào dùng Flexbox vs Grid](#khi-nào-dùng-flexbox-vs-grid)
+6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Ví dụ trực quan: Flexbox + Grid trong một trang
+
+Copy toàn bộ đoạn dưới vào file `demo-layout.html` và mở bằng trình duyệt. Bạn sẽ thấy:
+
+- **Thanh nav ngang** (Flexbox): ba link nằm trên một hàng, cách đều nhau (`justify-content: space-between`), căn giữa theo chiều dọc (`align-items: center`).
+- **Khối nội dung dạng lưới** (Grid): 4 ô chia đều 2 cột x 2 hàng, có khoảng cách (`gap`). Ô “Nội dung rộng” chiếm 2 cột (`grid-column: span 2`).
+
+**Thử:** Đổi `justify-content: space-between` thành `center` hoặc `flex-end` rồi F5 — vị trí các link thay đổi. Đổi `grid-template-columns: 1fr 1fr` thành `1fr 2fr 1fr` (và thêm ô nếu cần) để thấy tỉ lệ cột thay đổi.
+
+```html
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Demo Flexbox & Grid</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; padding: 1rem; }
+
+    /* Flexbox: thanh nav một hàng, căn đều */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      background: #f0f0f0;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .nav a { color: #1976d2; text-decoration: none; }
+
+    /* Grid: lưới 2 cột, có gap */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .grid > div {
+      padding: 1rem;
+      background: #e3f2fd;
+      border-radius: 8px;
+      border: 1px solid #90caf9;
+    }
+    .wide { grid-column: span 2; background: #bbdefb !important; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <span>Logo</span>
+    <a href="#">Trang chủ</a>
+    <a href="#">Sản phẩm</a>
+    <a href="#">Liên hệ</a>
+  </nav>
+  <div class="grid">
+    <div>Ô 1</div>
+    <div>Ô 2</div>
+    <div class="wide">Nội dung rộng (span 2 cột)</div>
+    <div>Ô 4</div>
+  </div>
+</body>
+</html>
+```
+
+Mở **F12 → Elements**, click vào `.nav` hoặc `.grid` và xem bên phải giá trị `display: flex` / `display: grid` và các thuộc tính con — giúp bạn liên hệ trực tiếp giữa code và giao diện.
 
 ---
 

@@ -3,12 +3,30 @@
 Để build giao diện Angular hoàn chỉnh cần chọn cách styling (SCSS, component styles), thư viện UI (Angular Material, PrimeNG, …) và cách làm responsive, theme.
 
 ## Mục lục
-1. [Component styles và SCSS](#component-styles-và-scss)
-2. [Angular Material](#angular-material)
-3. [Angular Animations](#angular-animations)
-4. [Theming và responsive](#theming-và-responsive)
-5. [Best practices](#best-practices)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [UI & Styling trong Angular là gì? (Cho người mới)](#ui--styling-trong-angular-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Style component và Material button](#ví-dụ-trực-quan-style-component-và-material-button)
+3. [Component styles và SCSS](#component-styles-và-scss)
+4. [Angular Material](#angular-material)
+5. [Angular Animations](#angular-animations)
+6. [Theming và responsive](#theming-và-responsive)
+7. [Best practices](#best-practices)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## UI & Styling trong Angular là gì? (Cho người mới)
+
+- **Styling** = cách bạn làm giao diện đẹp và nhất quán: CSS/SCSS cho từng component (file `.scss` gắn với component), style toàn cục (`styles.scss`), và có thể dùng **thư viện UI** (Angular Material, PrimeNG…) để có sẵn nút, form, bảng, theme.
+- **Component styles** mặc định có **encapsulation**: style trong component chỉ áp dụng cho view của component đó, không “rò rỉ” ra ngoài — tránh conflict với component khác. Dùng `:host` để style chính thẻ host (selector của component).
+- **Angular Material** = bộ component theo Material Design (button, input, dialog, table…), có theming (đổi màu chủ đạo). Cài bằng `ng add @angular/material`; sau đó dùng thẻ như `<button mat-button>`, `<mat-form-field>` trong template.
+
+---
+
+## Ví dụ trực quan: Style component và Material button
+
+**Style component:** Tạo component `ng g c demo-box`, trong `demo-box.component.scss` đặt `.box { padding: 1rem; border: 2px solid #1976d2; border-radius: 8px; }`, template `<div class="box">Nội dung</div>`. Trên màn hình bạn thấy hộp có viền xanh. Mở DevTools: class `.box` được Angular thêm suffix (ví dụ `_ngcontent-xxx`) nên chỉ áp cho element trong component này — đó là **view encapsulation**.
+
+**Material button:** Chạy `ng add @angular/material` (chọn theme, typography tùy ý). Trong template bất kỳ thêm `<button mat-raised-button color="primary">Nút Material</button>`. Trên màn hình xuất hiện nút theo Material Design (màu chủ đạo, ripple khi click). Đổi `color="accent"` hoặc `color="warn"` — nút đổi màu theo theme. Đó là UI library trực quan.
 
 ---
 

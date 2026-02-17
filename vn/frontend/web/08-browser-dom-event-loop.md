@@ -3,12 +3,37 @@
 Hiểu cách browser xử lý DOM, event và event loop giúp debug, tối ưu và trả lời phỏng vấn senior về runtime.
 
 ## Mục lục
-1. [Event loop](#event-loop)
-2. [Microtask vs Macrotask](#microtask-vs-macrotask)
-3. [DOM APIs cơ bản](#dom-apis-cơ-bản)
-4. [Event delegation](#event-delegation)
-5. [Bubbling và capturing](#bubbling-và-capturing)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [DOM và Event loop là gì? (Cho người mới)](#dom-và-event-loop-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Thứ tự sync, microtask, macrotask](#ví-dụ-trực-quan-thứ-tự-sync-microtask-macrotask)
+3. [Event loop](#event-loop)
+4. [Microtask vs Macrotask](#microtask-vs-macrotask)
+5. [DOM APIs cơ bản](#dom-apis-cơ-bản)
+6. [Event delegation](#event-delegation)
+6. [Bubbling và capturing](#bubbling-và-capturing)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## DOM và Event loop là gì? (Cho người mới)
+
+- **DOM** (Document Object Model) = cấu trúc cây của trang HTML mà JavaScript có thể đọc/sửa. Mỗi thẻ (div, p, button) là một **node**; bạn dùng API như `querySelector`, `appendChild`, `addEventListener` để tương tác. “DOM APIs” = các hàm sẵn có của trình duyệt để làm việc với cây đó.
+- **Event loop** = cơ chế cho phép JavaScript (chỉ có **một luồng**) vừa chạy code, vừa xử lý sự kiện (click, fetch xong…) mà không block. Code đồng bộ chạy trước; callback (setTimeout, Promise.then) được đưa vào hàng đợi và chạy khi “đến lượt”. Hiểu event loop giúp bạn giải thích tại sao `setTimeout(fn, 0)` không chạy ngay và tại sao Promise.then chạy trước setTimeout.
+
+---
+
+## Ví dụ trực quan: Thứ tự sync, microtask, macrotask
+
+Mở **Console (F12)** trên bất kỳ trang nào, dán đoạn sau và Enter. Bạn sẽ thấy in ra **1, 4, 3, 2** — không phải 1, 2, 3, 4. Giải thích: (1) và (4) chạy đồng bộ; (3) là microtask (Promise.then) chạy ngay sau khi stack rỗng; (2) là macrotask (setTimeout) chạy sau microtask. Đây là ví dụ trực quan “microtask ưu tiên hơn macrotask”.
+
+```javascript
+console.log(1);
+setTimeout(() => console.log(2), 0);
+Promise.resolve().then(() => console.log(3));
+console.log(4);
+// In ra: 1, 4, 3, 2
+```
+
+**Thử:** Thêm nhiều `Promise.resolve().then(...)` và nhiều `setTimeout(..., 0)` — microtasks luôn chạy hết trước khi chuyển sang một macrotask tiếp theo.
 
 ---
 

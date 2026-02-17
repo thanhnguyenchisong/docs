@@ -3,12 +3,30 @@
 Component là đơn vị UI cơ bản trong Angular: class (logic) + template (HTML) + style.
 
 ## Mục lục
-1. [Tạo component](#tạo-component)
-2. [Data binding](#data-binding)
-3. [Input và Output](#input-và-output)
-4. [ViewChild và ContentChild](#viewchild-và-contentchild)
-5. [Template reference variable](#template-reference-variable)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Component là gì? (Cho người mới)](#component-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Từ class + template đến màn hình](#ví-dụ-trực-quan-từ-class--template-đến-màn-hình)
+3. [Tạo component](#tạo-component)
+4. [Data binding](#data-binding)
+5. [Input và Output](#input-và-output)
+6. [ViewChild và ContentChild](#viewchild-và-contentchild)
+7. [Template reference variable](#template-reference-variable)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Component là gì? (Cho người mới)
+
+- **Component** = một “khối” giao diện có **logic** (class TypeScript) và **giao diện** (template HTML, có thể kèm CSS). Ví dụ: nút “Thêm vào giỏ”, card sản phẩm, form đăng nhập — mỗi thứ có thể là một component. Angular render trang bằng cách ghép nhiều component: component gốc chứa component con, tạo thành cây component.
+- **Selector** = tên thẻ HTML để đặt component vào template (ví dụ `<app-product-list>`). **Template** = HTML có thể chèn biến và biểu thức (`{{ title }}`, `(click)="..."`). **Data binding** = kết nối dữ liệu từ class ra template và ngược lại (sự kiện từ template vào class).
+- Khi bạn đổi dữ liệu trong class (ví dụ `title = 'Xin chào'`), template tự cập nhật; khi user click, class nhận sự kiện và xử lý. Đây là nền tảng của mọi màn hình Angular.
+
+---
+
+## Ví dụ trực quan: Từ class + template đến màn hình
+
+Chạy `ng g c demo-hello --standalone`. Trong `demo-hello.component.ts` đặt `name = 'Nguyễn Văn A'`; trong template đặt `<p>Xin chào, {{ name }}!</p>`. Ở `app.component.html` thêm `<app-demo-hello></app-demo-hello>`. Chạy `ng serve` — trên màn hình bạn thấy **“Xin chào, Nguyễn Văn A!”**. Đổi `name` thành `'Trần Thị B'` và lưu → chữ trên trang đổi theo. Đó là **one-way binding** (class → template).
+
+**Thử two-way:** Thêm trong template `<input [(ngModel)]="name" />` (cần import `FormsModule`). Khi bạn gõ vào ô input, chữ “Xin chào, ...” cập nhật theo từng ký tự — dữ liệu đi cả hai chiều: input → class → template.
 
 ---
 

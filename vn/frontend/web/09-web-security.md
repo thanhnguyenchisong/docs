@@ -3,12 +3,32 @@
 Các rủi ro và biện pháp bảo mật phía client và giao tiếp web: XSS, CSP, CORS, HTTPS, cookies. Senior cần nắm để thiết kế và trả lời phỏng vấn.
 
 ## Mục lục
-1. [XSS (Cross-Site Scripting)](#xss-cross-site-scripting)
-2. [CSP (Content Security Policy)](#csp-content-security-policy)
-3. [CORS](#cors)
-4. [HTTPS và transport](#https-và-transport)
-5. [Cookies và token](#cookies-và-token)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Bảo mật web là gì? (Cho người mới)](#bảo-mật-web-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: XSS đơn giản và cách tránh](#ví-dụ-trực-quan-xss-đơn-giản-và-cách-tránh)
+3. [XSS (Cross-Site Scripting)](#xss-cross-site-scripting)
+4. [CSP (Content Security Policy)](#csp-content-security-policy)
+5. [CORS](#cors)
+6. [HTTPS và transport](#https-và-transport)
+7. [Cookies và token](#cookies-và-token)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Bảo mật web là gì? (Cho người mới)
+
+- **Bảo mật web (phía frontend và giao tiếp)** = tránh kẻ xấu đánh cắp dữ liệu, chiếm phiên đăng nhập, hoặc chèn mã độc vào trang. Các rủi ro thường gặp: **XSS** (script chạy trong trang của nạn nhân), **CSRF** (request giả mạo từ site khác), **CORS** (gọi API khác domain bị chặn nếu server không cấu hình), **lộ cookie/token** (bị đọc qua XSS hoặc gửi qua HTTP không mã hóa).
+- **Frontend có thể làm:** Escape/sanitize dữ liệu hiển thị (chống XSS), không lưu token nhạy cảm vào localStorage khi có rủi ro XSS, dùng HTTPS, tôn trọng CSP. **Server phải làm:** CORS, cookie HttpOnly/SameSite, CSRF token, HTTPS.
+- Senior thường được hỏi: XSS vs CSRF khác nhau thế nào, CORS do ai cấu hình, cookie đặt HttpOnly/Secure/SameSite để làm gì.
+
+---
+
+## Ví dụ trực quan: XSS đơn giản và cách tránh
+
+**Ví dụ nguy hiểm (chỉ để học, không dùng trong production):** Nếu trang hiển thị nội dung từ URL mà không escape, kẻ tấn công có thể gửi link: `https://site.com/search?q=<script>alert('XSS')</script>`. Nếu server hoặc client chèn `q` vào HTML (innerHTML hoặc document.write), script sẽ chạy — đó là **reflected XSS**.
+
+**Cách tránh:** Luôn hiển thị dữ liệu user dưới dạng **text** (Angular/React escape mặc định cho `{{ data }}` hoặc text node), không dùng `innerHTML` với input thô. Nếu bắt buộc phải render HTML (editor rich text), dùng thư viện sanitize (DOMPurify, Angular DomSanitizer) để loại bỏ thẻ script.
+
+**Thử trong Console:** `document.createElement('div').textContent = '<script>alert(1)</script>'` — sau đó `div.innerHTML` sẽ là chuỗi đã escape, không chạy script. So sánh với `div.innerHTML = '<script>alert(1)</script>'` (nguy hiểm, script chạy trong context đó). Đó là “escape output” trực quan.
 
 ---
 

@@ -2,6 +2,12 @@
 
 Tài liệu này bổ sung cho bộ 01–16 (gồm **AG-Grid**), tập trung vào **mức senior/master**: Change Detection, performance, bảo mật, kiến trúc, debugging và **checklist câu hỏi phỏng vấn** để tự kiểm tra đủ chuẩn **master Angular & lập trình web bằng Angular**.
 
+## Cho người mới: Đọc bài này khi nào?
+
+- Bài **15** dành cho người đã học xong **01–14** (TypeScript, Angular căn bản, Components, Services, Routing, Forms, HTTP, RxJS, State, UI, Testing, Build, NgRx). Nội dung ở đây là **nâng cao**: Change Detection, Signals, tối ưu performance, bảo mật, kiến trúc app lớn và **checklist phỏng vấn Senior**.
+- Nếu bạn **mới bắt đầu**, hãy đọc theo thứ tự từ **01** → **14**; khi đã làm được app có form, API, state và routing, quay lại bài 15 để hiểu sâu và chuẩn bị phỏng vấn.
+- **Ví dụ trực quan:** Phần “Change Detection” và “OnPush” — bạn có thể tạo một component con dùng `ChangeDetectionStrategy.OnPush`, truyền input từ cha; khi cha đổi **reference** (object/array mới) thì con cập nhật, khi cha mutate cùng reference thì con không cập nhật. So sánh với component không OnPush để thấy sự khác biệt trên màn hình và trong số lần chạy CD (có thể log trong ngDoCheck).
+
 ## Mục lục
 1. [Change Detection sâu](#change-detection-sâu)
 2. [Signals — reactive primitive](#signals--reactive-primitive)

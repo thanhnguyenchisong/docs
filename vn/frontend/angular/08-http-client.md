@@ -3,11 +3,30 @@
 Angular cung cấp `HttpClient` (từ `@angular/common/http`) để gọi API REST. Hỗ trợ Observable, interceptors, typed response.
 
 ## Mục lục
-1. [Cấu hình và dùng cơ bản](#cấu-hình-và-dùng-cơ-bản)
-2. [Các phương thức và options](#các-phương-thức-và-options)
-3. [Interceptors](#interceptors)
-4. [Error handling](#error-handling)
-5. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [HttpClient là gì? (Cho người mới)](#httpclient-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Gọi API và hiển thị dữ liệu](#ví-dụ-trực-quan-gọi-api-và-hiển-thị-dữ-liệu)
+3. [Cấu hình và dùng cơ bản](#cấu-hình-và-dùng-cơ-bản)
+4. [Các phương thức và options](#các-phương-thức-và-options)
+5. [Interceptors](#interceptors)
+6. [Error handling](#error-handling)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## HttpClient là gì? (Cho người mới)
+
+- **HttpClient** = service của Angular dùng để **gửi request HTTP** (GET, POST, PUT, DELETE…) tới server/API. Thay vì dùng `fetch()` hoặc `XMLHttpRequest` trực tiếp, bạn inject `HttpClient` và gọi `http.get(url)`, `http.post(url, body)`… Angular xử lý subscribe, typed response, và tích hợp với interceptors.
+- **Observable:** Mỗi lần gọi `http.get()` trả về **Observable** — request chưa gửi ngay cho đến khi có ai **subscribe**. Khi server trả về, Observable emit dữ liệu (hoặc lỗi). Trong component bạn `.subscribe(data => this.list = data)` hoặc dùng **async pipe** trong template để tự subscribe/unsubscribe.
+- **Interceptor** = “middleware”: mọi request/response đi qua HttpClient đều có thể bị chặn để thêm header (token), xử lý lỗi chung, log. Cấu hình một lần trong `provideHttpClient(withInterceptors([...]))`.
+
+---
+
+## Ví dụ trực quan: Gọi API và hiển thị dữ liệu
+
+1. Trong `app.config.ts` thêm `provideHttpClient()` (và `withFetch()` nếu dùng Angular 18+).
+2. Tạo service `ApiService`, inject `HttpClient`, thêm method `getUsers()` trả về `this.http.get<User[]>('https://jsonplaceholder.typicode.com/users')`.
+3. Trong component inject `ApiService`, trong `ngOnInit()` gọi `this.apiService.getUsers().subscribe(users => this.users = users)` và trong template `*ngFor="let u of users"` hiển thị `{{ u.name }}`.
+4. Chạy app: khi trang load, request GET gửi đi, khi có response danh sách user hiển thị trên màn hình. Mở **F12 → Network** — bạn thấy request tới `jsonplaceholder.typicode.com`. Đó là “gọi API → nhận dữ liệu → hiển thị” trực quan. Thử thêm `console.log(users)` trong subscribe để xem cấu trúc object trả về.
 
 ---
 

@@ -39,6 +39,16 @@ ng serve
 - `cd my-app`: vào thư mục project.
 - `ng serve`: chạy máy chủ phát triển; mở trình duyệt tại `http://localhost:4200` để xem app.
 
+**Ví dụ trực quan: Bạn sẽ thấy gì khi chạy `ng serve`?**
+
+Sau khi chạy `ng serve`, terminal in dòng dạng: `✔ Compiled successfully` và URL `http://localhost:4200`. Mở trình duyệt vào địa chỉ đó, bạn sẽ thấy trang mặc định của Angular:
+
+- **Trên màn hình:** Logo Angular xoay, tiêu đề "Hello" (hoặc tên app), và vài link (Documentation, Tutorial…). Toàn bộ giao diện đó do **một component gốc** (`app.component`) render ra.
+
+- **Thử sửa một dòng để thấy thay đổi ngay:** Mở `src/app/app.component.ts`, tìm dòng có `title = '...'` (hoặc trong template có chữ "Hello"). Đổi thành `title = 'Xin chào Angular'` và lưu file. Trình duyệt sẽ **tự reload** (hot reload) và chữ trên trang đổi theo. Đó là cách bạn “nhìn thấy” code và giao diện gắn với nhau.
+
+- **Thử tạo component mới:** Chạy `ng g c hello --standalone`. CLI tạo thư mục `src/app/hello/` với file `hello.component.ts` và template. Mở `app.component.ts`, import `HelloComponent` và thêm `<app-hello></app-hello>` vào template — lưu lại, trang sẽ xuất hiện thêm nội dung của component `hello`. Như vậy bạn đã thấy **cấu trúc project** (component nằm trong thư mục, được gọi trong template) bằng mắt.
+
 Lệnh thường dùng:
 
 | Lệnh | Mô tả |
@@ -77,6 +87,17 @@ my-app/
 - **core/**: Service dùng toàn app (AuthService, ApiService), HTTP interceptors, guards.
 - **shared/**: Component/pipe/directive dùng lại nhiều nơi (button, modal, format pipe).
 - **features/**: Tổ chức theo tính năng (user, product, order).
+
+**Ví dụ trực quan: File nào tương ứng với cái gì trên màn hình**
+
+| Bạn thấy trên trang | File / vị trí thường gặp |
+|---------------------|--------------------------|
+| Toàn bộ nội dung trang (logo, chữ, menu) | `app.component.ts` + template (hoặc `app.component.html`) |
+| Đường dẫn URL (ví dụ `/home`, `/products`) | `app.routes.ts` — mỗi route map tới một component |
+| Một khối lặp lại (card, nút, form) | Component trong `shared/` hoặc `features/.../` |
+| Trang chủ, trang login, trang danh sách | Mỗi route load một component khác nhau |
+
+Mở `src/app/app.component.ts` và so sánh với những gì đang hiển thị trên trình duyệt — bạn sẽ thấy template (HTML) và dữ liệu trong class quyết định nội dung hiển thị.
 
 ---
 

@@ -3,12 +3,34 @@
 Tối ưu tốc độ load và cảm nhận mượt: critical path, Core Web Vitals, lazy load, caching, đo lường. Senior cần biết cách đo, ưu tiên và implement.
 
 ## Mục lục
-1. [Critical Rendering Path](#critical-rendering-path)
-2. [Core Web Vitals](#core-web-vitals)
-3. [Tối ưu loading](#tối-ưu-loading)
-4. [Tối ưu rendering](#tối-ưu-rendering)
-5. [Đo lường và tool](#đo-lường-và-tool)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Performance web là gì? (Cho người mới)](#performance-web-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Đo bằng Lighthouse](#ví-dụ-trực-quan-đo-bằng-lighthouse)
+3. [Critical Rendering Path](#critical-rendering-path)
+4. [Core Web Vitals](#core-web-vitals)
+5. [Tối ưu loading](#tối-ưu-loading)
+6. [Tối ưu rendering](#tối-ưu-rendering)
+6. [Đo lường và tool](#đo-lường-và-tool)
+7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Performance web là gì? (Cho người mới)
+
+- **Web performance** = trang load **nhanh** và **mượt**: mở trang không phải đợi lâu, scroll/click không giật. Ảnh hưởng trực tiếp đến trải nghiệm và SEO (Google dùng tốc độ làm tín hiệu xếp hạng).
+- **Các khái niệm thường gặp:** **Critical path** = chuỗi bước (HTML → CSS → render) để hiển thị lần đầu. **Core Web Vitals** = các chỉ số Google quan tâm: LCP (nội dung chính xuất hiện nhanh), FID/INP (tương tác phản hồi nhanh), CLS (layout không nhảy). **Lazy load** = chỉ tải ảnh/JS khi cần (ví dụ khi scroll tới).
+- **Cách bắt đầu:** Dùng **Lighthouse** (F12 → tab Lighthouse) chạy audit Performance; xem điểm và gợi ý (giảm JS không dùng, thêm width/height cho ảnh, preload font…). Từ đó ưu tiên sửa từng mục.
+
+---
+
+## Ví dụ trực quan: Đo bằng Lighthouse
+
+1. Mở bất kỳ trang web nào (ví dụ trang bạn đang làm).
+2. **F12** → chọn tab **Lighthouse**.
+3. Chọn **Performance** (và có thể Accessibility, Best practices), **Desktop** hoặc **Mobile** → **Analyze page load**.
+4. Sau vài giây bạn sẽ thấy **điểm số** (0–100) và **Core Web Vitals**: LCP, INP, CLS. Màu đỏ/cam/xanh tương ứng mức kém/trung bình/tốt.
+5. Phần **Opportunities** và **Diagnostics** liệt kê cụ thể: “Properly size images”, “Reduce unused JavaScript”, “Ensure text remains visible during webfont load”… — mỗi mục có thể mở ra xem element/file nào và cách sửa.
+
+**Thử:** Với trang có nhiều ảnh, thêm `loading="lazy"` và `width`/`height` (hoặc aspect-ratio) cho ảnh dưới fold, build lại rồi chạy Lighthouse lần nữa — điểm và CLS thường cải thiện. Đó là “ví dụ trực quan” của tối ưu performance.
 
 ---
 

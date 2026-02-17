@@ -3,18 +3,35 @@
 AG-Grid là thư viện **data grid** mạnh cho Angular: sort, filter, pagination, virtual scroll, grouping, pivot, cell editor, export. Dùng khi cần bảng dữ liệu lớn, tương tác nhiều — sau khi đọc bài này bạn biết tích hợp và dùng cơ bản đến nâng cao.
 
 ## Mục lục
-1. [AG-Grid là gì?](#ag-grid-là-gì)
-2. [Cài đặt và cấu hình](#cài-đặt-và-cấu-hình)
-3. [Column definition và data binding](#column-definition-và-data-binding)
-4. [Sort, filter, pagination](#sort-filter-pagination)
-5. [Virtual scroll và performance](#virtual-scroll-và-performance)
-6. [Cell editor, cell renderer](#cell-editor-cell-renderer)
-7. [Tích hợp với Angular (reactive, OnPush)](#tích-hợp-với-angular-reactive-onpush)
-8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [AG-Grid là gì? (Cho người mới)](#ag-grid-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Bảng có sort và filter ngay sau khi cài](#ví-dụ-trực-quan-bảng-có-sort-và-filter-ngay-sau-khi-cài)
+3. [AG-Grid là gì? (chi tiết)](#ag-grid-là-gì-chi-tiết)
+4. [Cài đặt và cấu hình](#cài-đặt-và-cấu-hình)
+5. [Column definition và data binding](#column-definition-và-data-binding)
+6. [Sort, filter, pagination](#sort-filter-pagination)
+7. [Virtual scroll và performance](#virtual-scroll-và-performance)
+8. [Cell editor, cell renderer](#cell-editor-cell-renderer)
+9. [Tích hợp với Angular (reactive, OnPush)](#tích-hợp-với-angular-reactive-onpush)
+10. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
-## AG-Grid là gì?
+## AG-Grid là gì? (Cho người mới)
+
+- **AG-Grid** = thư viện **bảng dữ liệu** (data grid) cho Angular: không phải table HTML đơn giản mà bảng có **sort** (click header), **filter** (theo cột), **phân trang**, **virtual scroll** (chỉ render dòng trong viewport — hàng nghìn dòng vẫn mượt), có thể chỉnh sửa ô (cell editor), export Excel. Dùng khi danh sách lớn, cần tính năng grid đầy đủ (thay cho Material Table hoặc table tự viết).
+- **Community (miễn phí)** đã có sort, filter, resize cột; **Enterprise (trả phí)** thêm grouping nâng cao, pivot, Excel export đầy đủ. Tích hợp Angular qua package `ag-grid-angular`, binding `[rowData]` và `[columnDefs]`.
+
+---
+
+## Ví dụ trực quan: Bảng có sort và filter ngay sau khi cài
+
+1. Chạy `npm install ag-grid-community ag-grid-angular`. Import `AgGridAngular` và 2 file CSS theme (ag-grid.css, ag-theme-alpine.css).
+2. Trong component: `rowData = [{ name: 'A', email: 'a@x.com' }, { name: 'B', email: 'b@x.com' }];` và `columnDefs = [{ field: 'name', headerName: 'Tên', sortable: true, filter: true }, { field: 'email', headerName: 'Email', filter: true }];`. Template: `<ag-grid-angular [rowData]="rowData" [columnDefs]="columnDefs" class="ag-theme-alpine" style="height: 300px;">`.
+3. Chạy app: bạn thấy **bảng 2 cột**, click header cột “Tên” → **sort**, mở icon filter trên header → **filter** theo text. Đó là data grid trực quan. Thử thêm nhiều dòng vào `rowData` — grid tự scroll; bật virtual scroll (mặc định) khi dữ liệu lớn.
+
+---
+
+## AG-Grid là gì? (chi tiết)
 
 - **Data grid** enterprise: bảng có sort, filter, resize, reorder cột, grouping, aggregation, export Excel/CSV.
 - **Angular**: Có package `ag-grid-angular`; dùng như component Angular, binding với `[rowData]`, `[columnDefs]`.

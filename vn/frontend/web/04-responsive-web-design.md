@@ -3,12 +3,66 @@
 Thiết kế web thích ứng mọi kích thước màn hình: mobile-first, breakpoints, media queries, viewport, responsive images. Senior cần nắm để ship UI đa thiết bị.
 
 ## Mục lục
-1. [Viewport và meta](#viewport-và-meta)
-2. [Mobile-first](#mobile-first)
-3. [Media queries](#media-queries)
-4. [Breakpoints và chiến lược](#breakpoints-và-chiến-lược)
-5. [Responsive images](#responsive-images)
-6. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [Responsive là gì? (Cho người mới)](#responsive-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Cùng một trang trên mobile vs desktop](#ví-dụ-trực-quan-cùng-một-trang-trên-mobile-vs-desktop)
+3. [Viewport và meta](#viewport-và-meta)
+4. [Mobile-first](#mobile-first)
+5. [Media queries](#media-queries)
+6. [Breakpoints và chiến lược](#breakpoints-và-chiến-lược)
+7. [Responsive images](#responsive-images)
+8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## Responsive là gì? (Cho người mới)
+
+- **Responsive Web Design** (thiết kế web đáp ứng) nghĩa là **một trang web** có thể hiển thị phù hợp trên nhiều kích thước màn hình: điện thoại, máy tính bảng, máy tính để bàn. Nội dung không “vỡ” layout, chữ không quá nhỏ trên mobile, không quá trống trên desktop.
+- Cách làm: dùng **CSS Media Queries** để “nếu màn hình rộng hơn X px thì áp dụng style khác” (ví dụ: 1 cột trên mobile, 3 cột trên desktop). Kết hợp **viewport** trong HTML để mobile không zoom out toàn trang, và **responsive images** (nhiều kích thước ảnh) để tiết kiệm băng thông.
+- **Mobile-first** = viết CSS cho màn hình nhỏ trước, rồi dùng `min-width` để “nâng cấp” cho màn lớn — dễ đọc và ít phải ghi đè style.
+
+---
+
+## Ví dụ trực quan: Cùng một trang trên mobile vs desktop
+
+Copy file dưới thành `demo-responsive.html` và mở bằng trình duyệt. **Thu nhỏ cửa sổ** (kéo mép) hoặc dùng **F12 → Toggle device toolbar** (Ctrl+Shift+M) để giả lập mobile/tablet. Bạn sẽ thấy:
+
+- **Màn hẹp:** 1 cột, padding nhỏ, chữ "Mobile" hiển thị.
+- **Màn rộng ≥ 768px:** 2 cột, container giới hạn max-width, chữ "Tablet/Desktop" hiển thị.
+
+```html
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo Responsive</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0 1rem; }
+    .container { max-width: 900px; margin: 0 auto; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+    .box { padding: 1rem; background: #e3f2fd; border-radius: 8px; }
+    .hint { padding: 0.5rem; background: #fff3cd; margin-bottom: 1rem; }
+    @media (min-width: 768px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .hint { background: #d4edda; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <p class="hint">Thu nhỏ cửa sổ hoặc F12 → Device toolbar để xem 1 cột (mobile) vs 2 cột (desktop).</p>
+    <div class="grid">
+      <div class="box">Ô 1</div>
+      <div class="box">Ô 2</div>
+      <div class="box">Ô 3</div>
+      <div class="box">Ô 4</div>
+    </div>
+  </div>
+</body>
+</html>
+```
+
+**Thử:** Đổi `768px` trong `@media (min-width: 768px)` thành `480px` — từ 480px trở lên đã chuyển sang 2 cột. Đó chính là **breakpoint**.
 
 ---
 

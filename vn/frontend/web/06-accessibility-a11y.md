@@ -3,13 +3,52 @@
 Web accessibility: mọi người (kể cả dùng screen reader, chỉ bàn phím, thị lực kém) đều dùng được sản phẩm. Senior cần nắm chuẩn và cách implement để pass phỏng vấn và audit thực tế.
 
 ## Mục lục
-1. [Tại sao a11y quan trọng](#tại-sao-a11y-quan-trọng)
-2. [Semantic HTML](#semantic-html)
-3. [Keyboard navigation](#keyboard-navigation)
-4. [ARIA khi cần](#aria-khi-cần)
-5. [Màu sắc và contrast](#màu-sắc-và-contrast)
-6. [Focus và focus visible](#focus-và-focus-visible)
-7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+1. [A11y là gì? (Cho người mới)](#a11y-là-gì-cho-người-mới)
+2. [Ví dụ trực quan: Semantic vs div + click](#ví-dụ-trực-quan-semantic-vs-div--click)
+3. [Tại sao a11y quan trọng](#tại-sao-a11y-quan-trọng)
+4. [Semantic HTML](#semantic-html)
+5. [Keyboard navigation](#keyboard-navigation)
+6. [ARIA khi cần](#aria-khi-cần)
+7. [Màu sắc và contrast](#màu-sắc-và-contrast)
+8. [Focus và focus visible](#focus-và-focus-visible)
+9. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## A11y là gì? (Cho người mới)
+
+- **Accessibility (a11y)** = “Khả năng tiếp cận”: trang web có thể dùng được bởi **mọi người**, kể cả người khiếm thị (dùng screen reader đọc nội dung), người chỉ dùng bàn phím (không dùng chuột), người thị lực kém (cần contrast cao, chữ to), người nhạy cảm với animation (cần tắt chuyển động).
+- **Tại sao cần:** Đạo đức, pháp lý (nhiều nước yêu cầu WCAG), SEO và UX cho tất cả user. Senior thường được hỏi: dùng thẻ gì cho nút bấm, làm sao để keyboard điều hướng được, ARIA dùng khi nào.
+- **Cách làm cơ bản:** Dùng đúng thẻ HTML có nghĩa (button, nav, main, label…), đảm bảo Tab/Enter/Space hoạt động, có focus rõ ràng, ảnh có alt, contrast đủ. Chỉ thêm ARIA khi HTML chưa đủ (component custom).
+
+---
+
+## Ví dụ trực quan: Semantic vs div + click
+
+**Cách kém a11y:** Dùng `<div onclick="...">Gửi</div>`. Screen reader không biết đây là nút; user chỉ bàn phím không focus được bằng Tab; không nhấn Enter/Space để kích hoạt.
+
+**Cách đúng:** Dùng `<button type="button">Gửi</button>`. Trình duyệt tự: có role button, focus được bằng Tab, Enter/Space kích hoạt, screen reader đọc “Gửi, button”.
+
+**Thử ngay:** Lưu file HTML dưới, mở bằng trình duyệt. Chỉ dùng **phím Tab** và **Enter** (không dùng chuột): “Nút đúng” focus và nhấn được; “Giả nút” (div) không xuất hiện trong thứ tự Tab. Bật **VoiceOver (Mac)** hoặc **NVDA (Windows)** để nghe screen reader đọc — nút đúng được đọc rõ, div không.
+
+```html
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Demo A11y</title>
+  <style>
+    button, .fake-btn { padding: 8px 16px; margin: 4px; cursor: pointer; }
+    .fake-btn { background: #ddd; border: 1px solid #999; }
+  </style>
+</head>
+<body>
+  <p>Chỉ dùng Tab và Enter (không chuột):</p>
+  <button type="button">Nút đúng (button) — Tab tới được, Enter bấm được</button>
+  <div class="fake-btn" onclick="alert('click')">Giả nút (div) — Tab không tới</div>
+</body>
+</html>
+```
 
 ---
 
