@@ -121,6 +121,76 @@ Cách cũ (vẫn dùng được):
 - **ViewChild**: Tham chiếu đến element/component **trong template của chính component**.
 - **ContentChild**: Tham chiếu đến content **được project từ cha** (ng-content).
 
+### Các ví dụ tham chiếu với ViewChild
+
+**1. Tham chiếu bằng template reference (`#tên`) → nhận `ElementRef`**
+
+```typescript
+@ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
+
+ngAfterViewInit() {
+  this.searchInput.nativeElement.focus();
+}
+```
+
+```html
+<input #searchInput type="text" />
+```
+
+**2. Tham chiếu bằng class Component → nhận instance component con**
+
+```typescript
+@ViewChild(ChildComponent) child!: ChildComponent;
+
+ngAfterViewInit() {
+  this.child.someMethod();
+  console.log(this.child.someProperty);
+}
+```
+
+```html
+<app-child />
+```
+
+**3. Tham chiếu bằng class Directive**
+
+```typescript
+@ViewChild(MyDirective) myDir!: MyDirective;
+```
+
+**4. Dùng `read` khi cần kiểu cụ thể (VD: từ template ref lấy Component thay vì ElementRef)**
+
+```typescript
+@ViewChild('myComp', { read: ChildComponent }) child!: ChildComponent;
+```
+
+```html
+<app-child #myComp />
+```
+
+**5. `static: true` khi element không phụ thuộc `*ngIf`/structural directive**  
+Dùng khi cần truy cập trong `ngOnInit`; mặc định `static: false` và chỉ sẵn sàng trong `ngAfterViewInit`.
+
+```typescript
+@ViewChild('alwaysThere', { static: true }) ref!: ElementRef;
+```
+
+**6. Nhiều phần tử cùng loại → dùng `ViewChildren`, nhận `QueryList`**
+
+```typescript
+@ViewChildren(ItemComponent) items!: QueryList<ItemComponent>;
+
+ngAfterViewInit() {
+  this.items.forEach(item => item.highlight());
+}
+```
+
+```html
+<app-item *ngFor="let x of list" />
+```
+
+**Lưu ý:** ViewChild/ViewChildren chỉ có giá trị sau khi view được tạo; truy cập an toàn trong `ngAfterViewInit()` (hoặc `ngOnInit()` nếu dùng `static: true`).
+
 ```typescript
 @ViewChild('formRef') formRef!: ElementRef<HTMLFormElement>;
 @ViewChild(ChildComponent) child!: ChildComponent;
