@@ -15,48 +15,46 @@
  *   <p appHighlight [highlightColor]="'pink'" [textColor]="'white'">Tùy chỉnh</p>
  *
  * Concepts:
- *   - @Directive với selector (attribute selector)
- *   - ElementRef để truy cập DOM element
+ *   - @Directive với selector (attribute selector, prefix app)
+ *   - Renderer2 thay vì nativeElement.style — bảo mật, SSR-safe
  *   - @HostListener để lắng nghe DOM events
  *   - input() signal-based input (Angular 17+)
  */
-import { Directive, ElementRef, HostListener, input } from '@angular/core';
+import { Directive, ElementRef, HostListener, Renderer2, input } from '@angular/core';
 
 @Directive({
-  // 📖 Bài 04: selector dùng [] cho attribute directive
-  // Dùng trong template: <p appHighlight>
+  // 📖 Bài 04: selector rõ ràng, prefix app (project convention)
   selector: '[appHighlight]',
   standalone: true,
 })
 export class HighlightDirective {
 
-  // 📖 Bài 03: input() — signal-based input (Angular 17+), type-safe
-  highlightColor = input<string>('yellow');   // Mặc định vàng
-  textColor = input<string>('');              // Mặc định giữ nguyên
+  highlightColor = input<string>('yellow');
+  textColor = input<string>('');
 
-  // 📖 Bài 04: ElementRef — tham chiếu đến DOM element
-  // CHÚ Ý: Truy cập nativeElement trực tiếp không an toàn cho SSR
-  // Dùng Renderer2 nếu cần SSR support
-  constructor(private readonly el: ElementRef<HTMLElement>) {}
+  constructor(
+    private readonly el: ElementRef<HTMLElement>,
+    private readonly renderer: Renderer2,
+  ) {}
 
-  // 📖 Bài 04: @HostListener — lắng nghe event trên host element
-  // Khi mouse vào → đổi màu nền
   @HostListener('mouseenter')
   onMouseEnter(): void {
     this.highlight(this.highlightColor(), this.textColor());
   }
 
-  // Khi mouse ra → xóa highlight
   @HostListener('mouseleave')
   onMouseLeave(): void {
     this.highlight('', '');
   }
 
   private highlight(bgColor: string, txtColor: string): void {
-    this.el.nativeElement.style.backgroundColor = bgColor;
-    this.el.nativeElement.style.transition = 'background-color 0.3s ease';
+    const native = this.el.nativeElement;
+    this.renderer.setStyle(native, 'backgroundColor', bgColor);
+    this.renderer.setStyle(native, 'transition', 'background-color 0.3s ease');
     if (txtColor) {
-      this.el.nativeElement.style.color = txtColor;
+      this.renderer.setStyle(native, 'color', txtColor);
+    } else {
+      this.renderer.removeStyle(native, 'color');
     }
   }
 }
