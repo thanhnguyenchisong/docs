@@ -121,6 +121,17 @@ Thay đổi **cấu trúc** DOM (thêm/xóa/lặp nhánh). Cú pháp có dấu `
 
 - **trackBy** (quan trọng với list động): Hàm trả về **id duy nhất** cho mỗi item. Angular dùng nó để so sánh item cũ/mới và **tái sử dụng** DOM node thay vì xóa rồi tạo lại → cải thiện performance và giữ state (vd focus, animation).
 
+**Khi nào dùng trackBy:**
+
+| Tình huống | Nên dùng trackBy? |
+|------------|-------------------|
+| List **thay đổi thường xuyên** (thêm/xóa/sắp xếp, hoặc gán mảng mới sau API/filter/sort) | **Có** — tránh Angular re-create toàn bộ node. |
+| Cần **giữ state** trên từng item (focus, input đang nhập, animation) | **Có** — Angular nhận diện đúng item → tái dùng node → state không mất. |
+| List **dài** và hay đổi | **Có** — giảm re-render, cải thiện performance. |
+| List gần như **tĩnh**, ít khi đổi reference | Vẫn nên dùng (theo thói quen); bắt buộc thì không. |
+
+Hàm trackBy **phải trả về giá trị duy nhất** (số hoặc string, thường là `id`). Tránh trả về object (so sánh theo reference). Nếu item không có `id`, có thể dùng `index` (kém tối ưu khi đổi thứ tự).
+
 ```html
 <li *ngFor="let item of items; trackBy: trackById">{{ item.name }}</li>
 ```
@@ -129,6 +140,7 @@ Thay đổi **cấu trúc** DOM (thêm/xóa/lặp nhánh). Cú pháp có dấu `
 trackById(index: number, item: { id: number }) {
   return item.id;
 }
+// Nếu không có id: return index (chấp nhận re-render khi đổi thứ tự)
 ```
 
 Nếu không dùng trackBy, mỗi lần `items` thay đổi (reference mới) Angular có thể re-create toàn bộ node.
@@ -427,28 +439,107 @@ export class TruncatePipe implements PipeTransform {
 - **standalone: true**: Component dùng pipe cần import pipe đó trong `imports`.
 - **transform(value, ...args)**: Tham số đầu là giá trị bên trái `|`, các tham số sau là tham số truyền vào pipe (`:30`, `:'---'`).
 
-### Pure vs Impure
+### Pure vs Impure — viết chi tiết
 
-| Loại | Khi nào chạy | Dùng khi |
-|------|--------------|----------|
-| **Pure** (mặc định) | Khi **reference** của input (value hoặc tham số) thay đổi | Đa số pipe: format, filter, map dữ liệu |
-| **Impure** | Mỗi **change detection** | Pipe phụ thuộc state ngoài (vd global, time), cần cập nhật liên tục — dùng ít vì tốn performance |
+Pipe nhận **đầu vào** (value + tham số) và trả về giá trị hiển thị. Angular phải **gọi** `transform()` của pipe để biết nên in gì ra template. Câu hỏi là: **Angular gọi `transform()` lúc nào?** — Pure và Impure khác nhau ở chỗ đó.
+
+---
+
+#### Angular chạy change detection rất thường xuyên
+
+Mỗi khi có event (click, input), HTTP trả về, `setTimeout`/`setInterval`, Observable emit… Angular chạy **change detection**: kiểm tra component, so sánh giá trị template, cập nhật DOM. Trong quá trình đó, mọi biểu thức trong template (kể cả pipe) **có thể** được tính lại. Pure/Impure quyết định **pipe có được tính lại hay không** trong mỗi lần change detection.
+
+---
+
+#### Pure pipe (mặc định — `pure: true` hoặc không khai báo)
+
+**Quy tắc:** Angular **chỉ gọi** `transform()` khi nó nhận thấy **đầu vào của pipe thay đổi**.
+
+- **Đầu vào** = giá trị bên trái `|` (value) + toàn bộ tham số sau tên pipe (`:param1:param2`).
+- **Thay đổi** được Angular so sánh theo **reference** (với object/array) hoặc theo **giá trị** (với string, number, boolean).
+
+**Ví dụ:**
+
+```html
+{{ fullName | truncate:30 }}
+```
+
+- Lần 1: `fullName = 'Nguyễn Văn A'` → pipe chạy → in `"Nguyễn Văn A"` (hoặc đã cắt nếu dài).
+- Lần 2: Change detection chạy lại (vd user click chỗ khác). `fullName` vẫn là `'Nguyễn Văn A'`, tham số vẫn `30` → **Angular không gọi lại** `transform()` → dùng lại kết quả cũ (cache).
+- Lần 3: Bạn gán `fullName = 'Trần Thị B'` → **đầu vào đổi** → Angular gọi lại `transform()` → in ra giá trị mới.
+
+**Ý nghĩa “pure”:** Với **cùng một bộ đầu vào**, pipe **luôn trả về cùng một kết quả**. Không phụ thuộc giờ hiện tại, biến global, hay bất kỳ thứ gì bên ngoài. Vì vậy Angular có thể **cache**: không cần gọi lại pipe nếu đầu vào không đổi.
+
+**Lưu ý với object/array:** So sánh theo **reference**. Nếu bạn truyền vào pipe một **mảng mới** mỗi lần (vd `get list()` trả về `[...]` mới), Angular coi là “đầu vào mới” → pure pipe vẫn chạy mỗi lần. Muốn pure pipe ít chạy thì đầu vào phải **ổn định** (cùng reference khi dữ liệu chưa đổi).
+
+---
+
+#### Impure pipe (`pure: false`)
+
+**Quy tắc:** Angular **gọi** `transform()` **mỗi lần** change detection chạy, **bất kể** đầu vào có đổi hay không. Không cache.
+
+**Ví dụ cần impure (hiếm):** Pipe “thời gian tương đối” — hiển thị “2 phút trước”, “vừa xong”… Giá trị hiển thị phụ thuộc **thời gian hiện tại** (`Date.now()`), không chỉ phụ thuộc vào giá trị `createdAt` bạn truyền vào. Mỗi phút trôi qua, chữ “3 phút trước” phải đổi thành “4 phút trước” mà không có tham số nào của pipe đổi → pipe phải chạy lại theo thời gian. Khi đó người ta đặt `pure: false` để Angular gọi pipe mỗi lần change detection (hoặc dùng cách khác như timer trong component).
 
 ```typescript
 @Pipe({
-  name: 'myPipe',
+  name: 'timeAgo',
   standalone: true,
-  pure: false,  // impure
+  pure: false,
 })
-export class MyPipe implements PipeTransform {
-  transform(value: unknown, ...args: unknown[]): unknown {
-    // Chạy mỗi lần change detection
-    return value;
+export class TimeAgoPipe implements PipeTransform {
+  transform(value: Date): string {
+    const now = Date.now();  // Phụ thuộc "bên ngoài" — mỗi lần gọi có thể khác
+    const diff = now - value.getTime();
+    if (diff < 60000) return 'vừa xong';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} phút trước`;
+    // ...
+    return value.toLocaleDateString();
   }
 }
 ```
 
-**Khuyến nghị**: Ưu tiên pure. Nếu cần “reactive” theo state phức tạp, cân nhắc dùng **computed/signal** hoặc method trong class thay vì impure pipe.
+**Nhược điểm:** Pipe chạy **rất nhiều lần** (mỗi lần có event, timer, HTTP…). Nếu logic trong pipe nặng hoặc dùng trong `*ngFor`, app có thể **chậm**. Vì vậy impure chỉ dùng khi thật sự cần.
+
+---
+
+#### So sánh nhanh
+
+| | Pure (mặc định) | Impure |
+|---|----------------|--------|
+| **Khi nào `transform()` chạy?** | Chỉ khi **đầu vào** (value + tham số) **thay đổi** (so sánh reference/value). | **Mỗi lần** Angular chạy change detection. |
+| **Angular có cache kết quả không?** | Có — cùng đầu vào thì dùng lại kết quả cũ. | Không — luôn gọi lại pipe. |
+| **Pipe có phụ thuộc thứ “bên ngoài” không?** | Không — chỉ phụ thuộc value + tham số. | Có — vd thời gian, biến global, service. |
+| **Performance** | Tốt — ít gọi. | Dễ nặng — gọi rất nhiều. |
+| **Ví dụ** | `date`, `currency`, `truncate`, `uppercase`. | Pipe kiểu “time ago”, pipe đọc giá trị từ service thay đổi liên tục. |
+
+---
+
+#### Cách khai báo
+
+```typescript
+@Pipe({
+  name: 'truncate',
+  standalone: true,
+  // pure: true  ← mặc định, không cần ghi
+})
+export class TruncatePipe implements PipeTransform { ... }
+```
+
+```typescript
+@Pipe({
+  name: 'timeAgo',
+  standalone: true,
+  pure: false,   // impure — pipe chạy mỗi change detection
+})
+export class TimeAgoPipe implements PipeTransform { ... }
+```
+
+---
+
+#### Nên dùng gì?
+
+- **Đa số pipe nên để pure:** format text, số, ngày, cắt chuỗi, map/filter dữ liệu theo tham số… Tất cả đều “cùng vào → cùng ra”, không cần impure.
+- **Chỉ đặt `pure: false`** khi giá trị hiển thị **thật sự** phụ thuộc thứ **ngoài** value + tham số (vd thời gian trôi, locale runtime). Và nên xem lại: có thể cập nhật giá trị đó trong component (signal, setInterval, subscription) rồi truyền **vào** pipe như một tham số → pipe vẫn pure, performance tốt hơn.
 
 ### Pipe có nhiều tham số
 
