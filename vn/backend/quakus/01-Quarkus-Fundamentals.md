@@ -98,6 +98,23 @@ Khác với thư viện thường, **Quarkus Extensions** có 2 phần:
 
 Ví dụ: `quarkus-hibernate-orm` sẽ scan entity, cấu hình session factory ngay lúc build, giúp startup nhanh.
 
+### Build-Time Optimization in Detail
+Quarkus tận dụng Build-time optimization với các bước chính như:
+
+1. **Classpath Scanning:**
+   - Dò tìm tất cả các class và annotations trong ứng dụng. Điều này giúp xác định trước các dependencies, entities cần dùng.
+
+2. **Framework Configuration:**
+   - Cấu hình các framework cần thiết (như JAX-RS, Hibernate, CDI) ngay từ build-time.
+
+3. **Session Factory Initialization:**
+   - Đối với Hibernate ORM, session factory được khởi tạo trong build-time để giảm thời gian khởi động.
+
+4. **Bytecode Optimization:**
+   - Tối ưu bytecode để chỉ giữ lại các thành phần cần thiết và loại bỏ các phần không được sử dụng.
+
+Cách tiếp cận này giúp giảm tải đáng kể cho runtime, làm cho ứng dụng Quarkus có khả năng khởi động nhanh và sử dụng ít tài nguyên hơn.
+
 ---
 
 ## Continuous Testing & Dev Mode
