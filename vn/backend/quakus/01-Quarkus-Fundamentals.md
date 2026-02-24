@@ -120,33 +120,43 @@ Cách tiếp cận này giúp giảm tải đáng kể cho runtime, làm cho ứ
 ## Continuous Testing & Dev Mode
 
 ### Dev Mode (`quarkus dev`)
-- **Hot Reload**: Live coding, thay đổi Java/Config/Resource apply ngay lập tức.
+- **Hot Reload**: Tự động nạp lại thay đổi (code, config, resource) ngay lập tức mà không cần khởi động lại toàn ứng dụng (zero restart). Giúp tối ưu thời gian, developer nhận được quick response và tập trung hoàn toàn vào business logic.
 - **Error Page**: Hiển thị stacktrace chi tiết và gợi ý sửa lỗi ngay trên trình duyệt.
 - **Dev UI** (`/q/dev`): Giao diện quản lý extensions, xem config, log, beans...
 
 ### Continuous Testing
-- Bấm `r` trong terminal dev mode để chạy lại test.
-- Tự động chạy lại các test bị ảnh hưởng khi sửa code.
-- Feedback loop cực nhanh.
+- Tích hợp sẵn trong dev mode (Bấm `r` trong terminal để chạy lại test).
+- Tự động phát hiện và chạy lại **chỉ các test bị ảnh hưởng** khi sửa code.
+- Mang lại feedback loop cực nhanh, hỗ trợ mạnh mẽ TDD (Test-Driven Development).
 
 ---
 
 ## Configuration
 
 ### Profiles
-Quarkus hỗ trợ các profile khác nhau (`dev`, `test`, `prod`).
+Quarkus hỗ trợ các profile khác nhau (`dev`, `test`, `prod`) để linh hoạt quản lý các môi trường.
+Chạy ứng dụng với specific profile: `java -Dquarkus.profile=dev -jar app.jar`
+
+### Xử lý lặp cấu hình giữa các Profile
+Khi có nhiều profile, việc cấu hình lặp lại rất dễ xảy ra. Cách tối ưu:
+1. **Sử dụng cấu hình chung (Global Config)**: Đặt các giá trị dùng chung ở ngoài, chỉ override trong profile khi có thay đổi.
+2. **Sử dụng Biến môi trường (Environment Variables)**: Rất hữu ích cho các thông tin nhạy cảm hoặc thay đổi động theo môi trường thực tế (giúp hạn chế hard-code).
 
 ```properties
 # application.properties
 
-# Global
+# Global config (Dùng chung cho mọi profile)
 quarkus.http.port=8080
+quarkus.datasource.username=common_user
+
+# Sử dụng biến môi trường cho bảo mật và chống lặp
+quarkus.datasource.password=${DB_PASSWORD}
 
 # Dev profile
 %dev.quarkus.log.level=DEBUG
 %dev.quarkus.datasource.db-kind=h2
 
-# Prod profile
+# Prod profile (Chỉ định sự khác biệt)
 %prod.quarkus.datasource.db-kind=postgresql
 %prod.quarkus.datasource.username=${DB_USER}
 ```
@@ -154,6 +164,21 @@ quarkus.http.port=8080
 ---
 
 ## Build và Runtime
+
+### Các lệnh cơ bản (Maven)
+
+```bash
+# 1. Chạy ứng dụng ở chế độ Dev Mode (hỗ trợ Hot Reload)
+./mvnw compile quarkus:dev
+
+# 2. Build ứng dụng JVM truyền thống (tạo ra thư mục target/quarkus-app)
+./mvnw package
+java -jar target/quarkus-app/quarkus-run.jar
+
+# 3. Build ứng dụng Native Image (yêu cầu GraalVM)
+./mvnw package -Pnative
+./target/my-app-1.0.0-runner
+```
 
 ### Maven Project
 
