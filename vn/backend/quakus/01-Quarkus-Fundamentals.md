@@ -8,6 +8,7 @@
 5. [Configuration](#configuration)
 6. [Build và Runtime](#build-và-runtime)
 7. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+8. [Hạn chế của Native Image](#hạn-chế-của-native-image)
 
 ---
 
@@ -267,6 +268,25 @@ dependencies {
 
 // Result: executable file (no JVM)
 ```
+
+---
+
+## Hạn chế của Native Image
+
+Mặc dù Native Image mang lại nhiều lợi thế, nhưng nó cũng có những hạn chế:
+
+1. **Thời gian và tài nguyên build cao**:
+   - Build Native Image mất nhiều thời gian hơn so với build JAR truyền thống do phải thực hiện tối ưu hóa phức tạp.
+   - Tiêu tốn nhiều tài nguyên (CPU và RAM) trong quá trình build.
+
+2. **Hạn chế với Reflection và Dynamic Code**:
+   - Native Image không hỗ trợ đầy đủ Reflection runtime, cần cấu hình hoặc thay thế các thư viện sử dụng reflection nhiều.
+
+3. **Kích thước file nhị phân lớn**:
+   - File binary đầu ra có thể lớn hơn file JAR thông thường vì tích hợp sẵn các thành phần cần thiết dưới dạng static.
+
+4. **Thiếu tối ưu lâu dài**:
+   - Không tận dụng được JIT Compiler để tối ưu runtime, hiệu năng có thể không tốt bằng ứng dụng chạy trên JVM được tối ưu hóa lâu dài.
 
 ---
 
