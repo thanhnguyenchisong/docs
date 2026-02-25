@@ -1,0 +1,233 @@
+QUARKUS
+
+PHASE 1 – Foundation & Core Architecture
+1️⃣ Quarkus Overview & Philosophy
+•	What is Quarkus ? Why need Quarkus?
+•	Compare with Spring Boot
+•	Cloud-Native & Kubernetes-first
+•	Build-time vs Runtime optimization
+•	Extension ecosystem (mechanism)
+________________________________________
+2️⃣ Development Workflow (Professional Setup)
+•	Quarkus CLI (quarkus dev, add extension…)
+•	Dev Mode (Live Coding – Zero Restart)
+•	Dev UI (/q/dev)
+•	Dev Services (auto start Postgres/Kafka/Keycloak…)
+•	Profiles (dev, test, prod)
+________________________________________
+3️⃣ Core Architecture & DI
+•	Arc (CDI engine của Quarkus)
+•	Build-time Dependency Injection
+•	@Inject
+•	Bean scopes:
+o	@ApplicationScoped
+o	@RequestScoped
+o	@Singleton
+o	@Dependent
+•	Producer & Observer
+•	Configuration system:
+o	application.properties
+o	Inject config (@ConfigProperty)
+o	Build-time vs Runtime properties
+________________________________________
+PHASE 2 – Web & API Layer
+4️⃣ REST APIs (RESTEasy Reactive)
+•	Jakarta REST annotations (@Path, @GET, @POST)
+•	JSON binding (Jackson / JSON-B)
+•	Validation (Hibernate Validator)
+•	Exception handling (@ServerExceptionMapper)
+•	Blocking vs Non-blocking endpoints
+•	@RunOnVirtualThread (Project Loom approach)
+________________________________________
+5️⃣ Reactive Programming
+•	Mutiny:
+o	Uni
+o	Multi
+o	Context propagation
+•	When use Reactive?
+•	Virtual Threads vs Reactive
+•	Reactive HTTP Client
+________________________________________
+PHASE 3 – Data & Persistence
+6️⃣ Hibernate ORM + Panache
+•	Active Record pattern
+•	Repository pattern
+•	CRUD
+•	Pagination, sorting
+•	Transactions (@Transactional)
+•	Migration:
+o	Flyway
+o	Liquibase
+•	Dev Services DB
+________________________________________
+7️⃣ Hibernate Reactive
+•	Reactive persistence
+•	Reactive transaction management
+•	Compare with traditional ORM
+________________________________________
+PHASE 4 – Messaging & Event-Driven
+8️⃣ SmallRye Reactive Messaging
+•	Kafka integration
+•	RabbitMQ
+•	@Incoming / @Outgoing
+•	Event-driven architecture
+•	Backpressure & streaming
+________________________________________
+PHASE 5 – Security & Identity (Production Critical)
+9️⃣ Security Core
+•	SecurityIdentity
+•	RBAC
+•	@RolesAllowed
+•	@Authenticated
+🔐 OIDC & JWT
+•	SmallRye JWT
+•	OAuth2
+•	OpenID Connect
+•	Keycloak integration
+•	Token propagation
+________________________________________
+PHASE 6 – Observability & Resilience
+🔎 Observability
+•	Logging
+•	SmallRye Health (Liveness, Readiness, Startup)
+•	Micrometer (Metrics)
+•	OpenTelemetry (Tracing)
+⚡ Fault Tolerance
+•	@Retry
+•	@CircuitBreaker
+•	@Fallback
+•	Timeout handling
+________________________________________
+PHASE 7 – Testing (Joy Factor 🚀)
+🧪 Testing in Quarkus
+•	@QuarkusTest
+•	@InjectMock
+•	Continuous Testing
+•	Test Resources
+•	Integration test với Dev Services
+________________________________________
+PHASE 8 – Build, Packaging & Performance
+📦 Build System
+•	Fast-jar structure
+•	Maven/Gradle setup
+•	Layered builds
+⚡ Native Image
+•	GraalVM / Mandrel
+•	Native executable build
+•	Tuning startup & memory
+•	JVM vs Native trade-offs
+🐳 Containerization
+•	Dockerfile.jvm
+•	Dockerfile.native
+•	Container runtime optimization
+________________________________________
+PHASE 9 – Kubernetes & Cloud Native
+•	Kubernetes manifest generation
+•	Health probes
+•	ConfigMaps & Secrets
+•	Container resource tuning
+________________________________________
+PHASE 10 – Advanced & Emerging (Optional nâng cao)
+•	WebSockets Next
+•	gRPC
+•	LangChain4j (AI integration)
+•	Panache Next (Jakarta Data)
+•	Advanced extension development
+
+
+For Individual
+1.	Core & DI & Dev Workflow
+2.	REST + Reactive
+3.	Data & Transactions
+4.	Messaging & Event-driven
+5.	Security
+6.	Observability & Testing
+7.	Build, Native, K8s
+________________________________________
+COVERAGE CHECK (Reference vs Current Files)
+
+FILES HIỆN TẠI:
+• 01-Quarkus-Fundamentals.md
+• 02-Getting-Started.md
+• 03-REST-APIs.md
+• 04-Dependency-Injection.md
+• 05-Data-Access.md
+• 07-Testing.md
+• 08-Native-Image.md
+• 09-Advanced-Topics.md
+
+MAP THEO PHASE:
+PHASE 1 – Foundation & Core Architecture
+✅ 01-Quarkus-Fundamentals.md (Overview, build-time, extensions, native)
+✅ 02-Getting-Started.md (CLI, Dev Mode, Dev UI, Profiles)
+✅ 04-Dependency-Injection.md (Arc/CDI, scopes, producers, events, config basics)
+⚠️ Missing detail: “Build-time vs Runtime properties” needs explicit section (currently rải rác).
+
+PHASE 2 – Web & API Layer
+✅ 03-REST-APIs.md (RESTEasy Reactive, JAX-RS, validation, exception handling)
+⚠️ Missing file: Reactive Programming (Mutiny, context propagation, reactive HTTP client, Virtual Threads vs Reactive) — chưa có file riêng.
+
+PHASE 3 – Data & Persistence
+✅ 05-Data-Access.md (ORM, Panache, transactions, migrations, caching, reactive ORM)
+⚠️ Hibernate Reactive section có nhưng thiếu “reactive transaction management pitfalls” chuyên sâu.
+
+PHASE 4 – Messaging & Event-Driven
+✅ 09-Advanced-Topics.md (Messaging Kafka/AMQP)
+⚠️ Thiếu “Backpressure & streaming” ví dụ chi tiết trong messaging.
+
+PHASE 5 – Security & Identity
+✅ 09-Advanced-Topics.md (OIDC/JWT/RBAC)
+⚠️ Thiếu “Token propagation” (REST client propagation) và “Security testing” mapping (đang ở 07-Testing).
+
+PHASE 6 – Observability & Resilience
+✅ 09-Advanced-Topics.md (Health/Metrics/Tracing)
+✅ 09-Advanced-Topics.md (Fault Tolerance)
+⚠️ Thiếu “structured logging + MDC examples” mapping rõ (đã có nhưng chưa đánh dấu trong reference).
+
+PHASE 7 – Testing
+✅ 07-Testing.md (QuarkusTest, InjectMock, Dev Services, Integration test)
+⚠️ Thiếu “Test Resources” explicit section (currently brief).
+⚠️ Missing “Contract testing” và “Testcontainers basics” trong reference.
+
+PHASE 8 – Build, Packaging & Performance
+✅ 08-Native-Image.md (GraalVM/Mandrel, build, trade-offs)
+⚠️ Missing file/section: Build system (fast-jar, layered builds) và Containerization (Dockerfile.jvm/native).
+
+PHASE 9 – Kubernetes & Cloud Native
+⚠️ Chỉ có trong 09-Advanced-Topics.md “Deployment Strategies”, thiếu chi tiết “ConfigMaps/Secrets, probes, HPA”.
+
+PHASE 10 – Advanced & Emerging
+✅ 09-Advanced-Topics.md (WebSockets, gRPC, GraphQL, Extensions)
+⚠️ Missing: LangChain4j, Panache Next (Jakarta Data) — chưa có section.
+
+________________________________________
+MISSING / TODO (CẦN BỔ SUNG FILE/SECTION)
+
+1) 06-Reactive-Programming.md
+   • Mutiny (Uni/Multi/operators)
+   • Context propagation
+   • Reactive HTTP Client
+   • Virtual Threads vs Reactive
+
+2) Build & Containerization (new file)
+   • Fast-jar structure
+   • Layered builds
+   • Dockerfile.jvm / Dockerfile.native
+   • Image size & runtime optimization
+
+3) Kubernetes & Cloud Native (new file)
+   • K8s manifests, probes
+   • ConfigMaps/Secrets
+   • HPA/autoscaling
+   • Resource tuning
+
+4) Security additions
+   • Token propagation (REST client)
+   • Security testing mapping to 07-Testing.md
+
+5) Messaging add-ons
+   • Backpressure/streaming details
+
+6) Advanced additions
+   • LangChain4j
+   • Panache Next (Jakarta Data)

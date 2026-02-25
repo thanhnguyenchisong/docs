@@ -988,6 +988,7 @@ public void transferSafe(Long fromId, Long toId, BigDecimal amount) {
 
     from.balance = from.balance.subtract(amount);
     to.balance = to.balance.add(amount);
+    // Auto-commit, auto-unlock
 }
 
 // Với Panache shorthand
@@ -1421,6 +1422,14 @@ public class ProductResource {
 | **Complexity** | Đơn giản | Phức tạp hơn |
 | **Khi nào dùng** | Hầu hết ứng dụng | High concurrency, nhiều I/O |
 
+### Reactive transaction management - Pitfalls
+
+1. **Không dùng @Transactional**: Hibernate Reactive **không** dùng `@Transactional` (JTA blocking). Luôn bọc logic trong `Panache.withTransaction(() -> ...)` hoặc `session.withTransaction(...)`.
+2. **Chain phải return Uni/Multi**: Nếu quên `return` trong lambda, transaction có thể commit/rollback sai hoặc không chạy.
+3. **Nested transaction**: `withTransaction` có thể lồng nhau; session/connection được share trong cùng Vert.x context. Cẩn thận khi gọi nhiều service reactive trong một transaction.
+4. **Timeout**: Reactive transaction không tự timeout như JTA; cần dùng `Uni` timeout (`.ifNoItem().after(Duration.ofSeconds(5)).fail()`) để tránh treo.
+5. **Blocking trong reactive transaction**: Gọi blocking code (JDBC, `Thread.sleep`) trong `withTransaction` sẽ block event loop → dùng `runSubscriptionOn(workerPool)` hoặc tách sang blocking API.
+
 ---
 
 ## Performance Optimization
@@ -1437,28 +1446,39 @@ for (User u : users) {
 
 // ===== Giải pháp 1: JOIN FETCH =====
 List<User> users = User.find(
-    "FROM User u LEFT JOIN FETCH u.orders WHERE u.active = true"
+    "SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.orders WHERE u.active = true"
 ).list();
-// Chỉ 1 query!
+// Total queries: 1 (tất cả data trong 1 query)
 
-// ===== Giải pháp 2: @NamedEntityGraph =====
-@Entity
-@NamedEntityGraph(
-    name = "User.withOrders",
-    attributeNodes = @NamedAttributeNode("orders")
-)
-public class User extends PanacheEntity { ... }
+// ===== Giải pháp 2: @BatchSize
+// @Entity
+// public class User {
+//     @OneToMany(mappedBy = "user")
+//     @BatchSize(size = 50)  // Load 50 users' orders cùng lúc
+//     public List<Order> orders;
+// }
+    
+public void fixBatchSize() {
+    List<User> users = User.listAll();
+    for (User u : users) {
+        u.orders.size();  // Queries: 1 (list) + ceil(N/50) (batch load)
+    }
+}
 
-// Sử dụng
-EntityGraph<?> graph = em.getEntityGraph("User.withOrders");
-List<User> users = em.createQuery("FROM User u WHERE u.active = true", User.class)
-    .setHint("jakarta.persistence.fetchgraph", graph)
-    .getResultList();
-
-// ===== Giải pháp 3: @BatchSize =====
-@OneToMany(mappedBy = "user")
-@BatchSize(size = 50)  // Load orders theo batch 50 thay vì 1
-public List<Order> orders;
+// ===== Giải pháp 3: DTO Projection (chỉ lấy cần thiết)
+public record UserOrderSummary(Long userId, String name, long orderCount) {}
+    
+public void fixProjection() {
+    List<UserOrderSummary> summary = User.getEntityManager()
+        .createQuery("""
+            SELECT new com.example.UserOrderSummary(u.id, u.name, COUNT(o))
+            FROM User u LEFT JOIN u.orders o
+            WHERE u.active = true
+            GROUP BY u.id, u.name
+            """, UserOrderSummary.class)
+        .getResultList();
+    // Total queries: 1 + Data transfer nhanh (chỉ 3 columns)
+}
 ```
 
 ### 2. Batch Insert/Update
@@ -1513,7 +1533,7 @@ quarkus.hibernate-orm.metrics.enabled=true
 | 2 | Giải quyết N+1 (JOIN FETCH / @BatchSize) | Critical |
 | 3 | Bật batch insert/update | High |
 | 4 | Dùng Projection thay vì load full entity | High |
-| 5 | Pagination cho list queries | High |
+| 5 | Pagination cho mọi list query | High |
 | 6 | Index cho các column WHERE/JOIN | High |
 | 7 | 2nd Level Cache cho read-heavy entities | Medium |
 | 8 | Connection pool sizing phù hợp | Medium |

@@ -7,16 +7,19 @@
 4. [REST-Assured (HTTP Testing)](#rest-assured-http-testing)
 5. [Mocking (@InjectMock, QuarkusMock)](#mocking-injectmock-quarkusmock)
 6. [Dev Services (Zero-Config Testcontainers)](#dev-services-zero-config-testcontainers)
-7. [Test Profiles](#test-profiles)
-8. [@QuarkusIntegrationTest](#quarkusintegrationtest)
-9. [Native Image Testing](#native-image-testing)
-10. [Continuous Testing](#continuous-testing)
-11. [Testing Security](#testing-security)
-12. [Testing Reactive Endpoints](#testing-reactive-endpoints)
-13. [Testing Kafka/Messaging](#testing-kafkamessaging)
-14. [Database Testing Strategies](#database-testing-strategies)
-15. [Test Organization & Best Practices](#test-organization--best-practices)
-16. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+7. [Test Resources (QuarkusTestResource)](#test-resources-quarkustestresource)
+8. [Testcontainers cơ bản](#testcontainers-cơ-bản)
+9. [Contract Testing](#contract-testing)
+10. [Test Profiles](#test-profiles)
+11. [@QuarkusIntegrationTest](#quarkusintegrationtest)
+12. [Native Image Testing](#native-image-testing)
+13. [Continuous Testing](#continuous-testing)
+14. [Testing Security](#testing-security)
+15. [Testing Reactive Endpoints](#testing-reactive-endpoints)
+16. [Testing Kafka/Messaging](#testing-kafkamessaging)
+17. [Database Testing Strategies](#database-testing-strategies)
+18. [Test Organization & Best Practices](#test-organization--best-practices)
+19. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -673,6 +676,143 @@ class DatabaseTest {
 
 ---
 
+## Test Resources (QuarkusTestResource)
+
+**Test Resources** là cơ chế Quarkus để khởi động/teardown tài nguyên cho test (DB, Kafka, WireMock, ...) qua `QuarkusTestResourceLifecycleManager`.
+
+### Khi nào cần
+
+- Dev Services **không** đủ (VD: cần Oracle, custom init script, nhiều DB).
+- Cần **nhiều container** (Postgres + Redis + Kafka) với thứ tự khởi động xác định.
+- Cần **inject config** từ resource (URL, port) vào `application.properties` cho test.
+
+### API chính
+
+```java
+public interface QuarkusTestResourceLifecycleManager {
+    Map<String, String> start();  // Start container/service, return config overrides
+    void stop();                  // Cleanup
+}
+```
+
+- `start()`: Start container, trả về `Map<String, String>` — Quarkus inject các key này như config (VD: `quarkus.datasource.jdbc.url`).
+- `stop()`: Gọi khi test class kết thúc.
+
+### Nhiều test resources
+
+```java
+@QuarkusTest
+@QuarkusTestResource(PostgresResource.class)
+@QuarkusTestResource(RedisResource.class)
+class MultiResourceTest { }
+```
+
+Thứ tự: start theo thứ tự khai báo, stop ngược lại.
+
+---
+
+## Testcontainers cơ bản
+
+**Testcontainers** (Java library) dùng Docker để chạy DB/message broker thật trong test. Quarkus tích hợp qua **Dev Services** (tự start container khi thiếu config) hoặc **QuarkusTestResource** (tự kiểm soát).
+
+### Dev Services vs Testcontainers thủ công
+
+| | Dev Services | Testcontainers (QuarkusTestResource) |
+| :--- | :--- | :--- |
+| **Config** | Zero config (Quarkus tự inject URL) | Tự khai báo container, tự inject config trong `start()` |
+| **Image** | Quarkus chọn mặc định | Tự chọn image, version |
+| **Init script** | `quarkus.datasource.devservices.init-script-path` | `withInitScript("init.sql")` |
+| **Khi nào dùng** | 1 DB/1 Kafka, đơn giản | Nhiều service, custom port, shared container |
+
+### Dependency Testcontainers
+
+```xml
+<dependency>
+    <groupId>org.testcontainers</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>1.19.3</version>
+    <scope>test</scope>
+</dependency>
+```
+
+### Ví dụ cơ bản (không Quarkus)
+
+```java
+// Standalone Testcontainers (JUnit)
+@Testcontainers
+class MyTest {
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    @BeforeAll
+    static void setup() {
+        postgres.start();
+        // System.setProperty("quarkus.datasource.jdbc.url", postgres.getJdbcUrl());
+    }
+}
+```
+
+Trong Quarkus: nên bọc trong `QuarkusTestResourceLifecycleManager` và dùng `@QuarkusTestResource` để Quarkus inject config đúng profile test.
+
+---
+
+## Contract Testing
+
+**Contract testing** đảm bảo Consumer và Provider API tương thích (request/response) mà không cần chạy toàn bộ hệ thống.
+
+### Consumer-driven (Pact)
+
+- **Consumer** (client) định nghĩa "tôi mong đợi request/response thế này".
+- **Provider** (server) chạy test xác minh có thỏa contract không.
+
+```xml
+<!-- Pact JUnit 5 -->
+<dependency>
+    <groupId>au.com.dius.pact.consumer</groupId>
+    <artifactId>junit5</artifactId>
+    <version>4.6.9</version>
+    <scope>test</scope>
+</dependency>
+```
+
+```java
+// Consumer test: định nghĩa contract
+@PactTestFor(providerName = "user-service")
+class UserClientContractTest {
+    @Pact(consumer = "order-service", provider = "user-service")
+    RequestResponsePact userByIdPact(PactDslWithProvider builder) {
+        return builder
+            .given("user 1 exists")
+            .uponReceiving("get user 1")
+            .path("/users/1")
+            .method("GET")
+            .willRespondWith()
+            .status(200)
+            .body(new PactDslJsonBody().numberType("id", 1L).stringType("name", "John"))
+            .toPact();
+    }
+
+    @Test
+    @PactTestFor(pactMethod = "userByIdPact")
+    void getUser(MockServer mockServer) {
+        // Gọi UserClient với baseUrl = mockServer.getUrl()
+        // Assert response khớp contract
+    }
+}
+```
+
+### Provider verification (Quarkus)
+
+- Provider (Quarkus app) chạy `@QuarkusTest` + Pact verify: nhận request từ Pact file (do consumer tạo), gọi endpoint thật, so sánh response.
+- Giúp phát hiện breaking change trước khi deploy.
+
+### Tóm tắt
+
+- **Contract test** thay thế một phần integration test end-to-end: nhanh hơn, ổn định hơn.
+- **Security testing** (OIDC, JWT): dùng `@TestSecurity`, `quarkus-test-security`, hoặc Keycloak Dev Services — xem mục [Testing Security](#testing-security).
+
+---
+
 ## Test Profiles
 
 ### Tạo Test Profile
@@ -1277,152 +1417,461 @@ void testWithFactory() {
 
 ---
 
-## Test Organization & Best Practices
+## ===== ENHANCEMENTS =====
 
-### Cấu trúc thư mục
-
-```
-src/test/
-├── java/com/example/
-│   ├── resource/                     # REST endpoint tests
-│   │   ├── UserResourceTest.java     # @QuarkusTest
-│   │   └── ProductResourceTest.java
-│   ├── service/                      # Service layer tests
-│   │   ├── UserServiceTest.java      # @QuarkusTest + @InjectMock
-│   │   └── OrderServiceTest.java
-│   ├── repository/                   # Repository tests
-│   │   └── UserRepositoryTest.java   # @QuarkusTest + Dev Services
-│   ├── integration/                  # Integration tests
-│   │   └── UserResourceIT.java       # @QuarkusIntegrationTest
-│   ├── unit/                         # Pure unit tests (no Quarkus)
-│   │   ├── UserMapperTest.java
-│   │   └── PriceCalculatorTest.java
-│   └── util/                         # Test utilities
-│       ├── TestDataFactory.java
-│       └── TestProfiles.java
-└── resources/
-    ├── application.properties        # Test config
-    ├── test-data.sql                 # Init data
-    └── import.sql                    # Hibernate import
-```
-
-### Naming Convention
+### Mục bổ sung sau "Database Testing Strategies": Advanced TestData Builders
 
 ```java
-// Pattern: test{Method}_{Scenario}_{ExpectedResult}
-@Test
-void testCreateUser_ValidInput_ReturnsCreated() { }
+// ===== TestDataBuilder Pattern - Complete Example =====
+public abstract class TestDataBuilder<T> {
+    protected T instance;
 
-@Test
-void testCreateUser_DuplicateEmail_Returns409() { }
+    public abstract T build();
 
-@Test
-void testGetUser_NonExistentId_Returns404() { }
+    public T buildAndPersist() {
+        T obj = build();
+        if (obj instanceof PanacheEntity) {
+            ((PanacheEntity) obj).persist();
+        }
+        return obj;
+    }
+}
 
-@Test
-void testDeleteUser_AdminRole_ReturnsNoContent() { }
+// ===== User Builder =====
+public class UserTestBuilder extends TestDataBuilder<User> {
+    private String name = "Default User";
+    private String email = "default@test.com";
+    private UserStatus status = UserStatus.ACTIVE;
+    private List<Order> orders = new ArrayList<>();
 
-@Test
-void testDeleteUser_UserRole_Returns403() { }
-```
+    public UserTestBuilder() {
+        instance = new User();
+    }
 
-### Test Isolation
+    public UserTestBuilder withName(String name) {
+        this.name = name;
+        return this;
+    }
 
-```java
+    public UserTestBuilder withEmail(String email) {
+        this.email = email;
+        return this;
+    }
+
+    public UserTestBuilder withStatus(UserStatus status) {
+        this.status = status;
+        return this;
+    }
+
+    public UserTestBuilder withOrders(Order... orders) {
+        this.orders.addAll(Arrays.asList(orders));
+        return this;
+    }
+
+    public UserTestBuilder admin() {
+        this.name = "Admin User";
+        this.email = "admin@test.com";
+        return this;
+    }
+
+    public UserTestBuilder banned() {
+        this.status = UserStatus.BANNED;
+        return this;
+    }
+
+    @Override
+    public User build() {
+        User user = instance;
+        user.name = this.name;
+        user.email = this.email;
+        user.status = this.status;
+        user.createdAt = LocalDateTime.now();
+        user.orders.addAll(this.orders);
+        return user;
+    }
+}
+
+// ===== Order Builder =====
+public class OrderTestBuilder extends TestDataBuilder<Order> {
+    private User user;
+    private BigDecimal totalAmount = BigDecimal.valueOf(100);
+    private OrderStatus status = OrderStatus.PENDING;
+    private List<OrderItem> items = new ArrayList<>();
+
+    public OrderTestBuilder() {
+        instance = new Order();
+    }
+
+    public OrderTestBuilder forUser(User user) {
+        this.user = user;
+        return this;
+    }
+
+    public OrderTestBuilder withAmount(BigDecimal amount) {
+        this.totalAmount = amount;
+        return this;
+    }
+
+    public OrderTestBuilder withStatus(OrderStatus status) {
+        this.status = status;
+        return this;
+    }
+
+    public OrderTestBuilder withItems(OrderItem... items) {
+        this.items.addAll(Arrays.asList(items));
+        return this;
+    }
+
+    public OrderTestBuilder completed() {
+        this.status = OrderStatus.COMPLETED;
+        return this;
+    }
+
+    @Override
+    public Order build() {
+        Order order = instance;
+        order.user = this.user;
+        order.totalAmount = this.totalAmount;
+        order.status = this.status;
+        order.items.addAll(this.items);
+        order.createdAt = LocalDateTime.now();
+        return order;
+    }
+}
+
+// ===== Usage in Tests =====
 @QuarkusTest
-class IsolatedTest {
+public class OrderServiceTest {
+
+    @Inject
+    OrderService orderService;
 
     @Inject
     UserRepository userRepo;
 
-    // ===== Cleanup trước mỗi test =====
-    @BeforeEach
+    @Test
     @Transactional
-    void cleanup() {
-        userRepo.deleteAll();
+    public void testOrderTotalCalculation() {
+        // Build test data fluently
+        User user = new UserTestBuilder()
+            .admin()
+            .withEmail("admin@company.com")
+            .buildAndPersist();
+
+        Order order = new OrderTestBuilder()
+            .forUser(user)
+            .withAmount(BigDecimal.valueOf(500))
+            .completed()
+            .buildAndPersist();
+
+        BigDecimal total = orderService.calculateTotal(order.id);
+        assertEquals(BigDecimal.valueOf(500), total);
     }
 
-    // ===== Hoặc dùng @TestTransaction =====
-    // Auto-rollback sau mỗi test
     @Test
-    @TestTransaction  // Quarkus-specific: rollback sau test
-    void testWithAutoRollback() {
-        User user = new User("Test", "test@test.com");
-        userRepo.persist(user);
-        // Sau test → tự động rollback, DB trở về trạng thái ban đầu
+    @Transactional
+    public void testMultipleOrdersPerUser() {
+        User user = new UserTestBuilder()
+            .withName("John Bulk")
+            .buildAndPersist();
+
+        // Create multiple orders
+        for (int i = 0; i < 5; i++) {
+            new OrderTestBuilder()
+                .forUser(user)
+                .withAmount(BigDecimal.valueOf(100 + i * 10))
+                .buildAndPersist();
+        }
+
+        List<Order> orders = orderService.findByUser(user.id);
+        assertEquals(5, orders.size());
     }
 }
 ```
 
----
+### Mục bổ sung: TestProfile Composition
 
-## Câu hỏi thường gặp
+```java
+// ===== Base Test Profile =====
+public class BaseTestProfile implements QuarkusTestProfile {
+    @Override
+    public Map<String, String> getConfigOverrides() {
+        return Map.of(
+            "quarkus.hibernate-orm.database.generation", "drop-and-create",
+            "quarkus.log.level", "INFO"
+        );
+    }
+}
 
-### Q1: @QuarkusTest vs @QuarkusIntegrationTest?
+// ===== Inheritance-based profiles =====
+public class MobileApiTestProfile extends BaseTestProfile {
+    @Override
+    public Map<String, String> getConfigOverrides() {
+        Map<String, String> base = super.getConfigOverrides();
+        Map<String, String> mobile = new HashMap<>(base);
+        mobile.put("app.api.version", "mobile-v1");
+        mobile.put("app.auth.token-ttl", "1h");
+        return mobile;
+    }
 
-| | @QuarkusTest | @QuarkusIntegrationTest |
-| :--- | :--- | :--- |
-| **App** | In-process | Separate process |
-| **CDI** | Có (inject, mock) | Không |
-| **Tốc độ** | Nhanh | Chậm |
-| **Dùng cho** | Component/API test | Smoke test, native test |
-| **Test gì** | Logic, CDI, REST API | Binary đã build hoạt động đúng |
+    @Override
+    public Set<Class<?>> getEnabledAlternatives() {
+        return Set.of(MobileAuthenticationProvider.class);
+    }
+}
 
-### Q2: Dev Services vs Manual Testcontainers?
+// ===== Composition using Profiles =====
+@QuarkusTest
+@TestProfile(MobileApiTestProfile.class)
+public class MobileApiTest {
+    // App configs: Base + Mobile overrides
+}
 
-- **Dev Services**: Zero-config, tự động, đủ cho 90% trường hợp
-- **Manual Testcontainers**: Khi cần custom config (init script phức tạp, nhiều containers, network)
-- **Khuyến nghị**: Bắt đầu với Dev Services, chuyển sang manual khi cần
+@QuarkusTest
+@TestProfile(WebApiTestProfile.class)
+public class WebApiTest {
+    // App configs: Base + Web overrides
+}
 
-### Q3: Tại sao test chậm?
+// ===== Dynamic TestProfile =====
+public class DynamicTestProfile implements QuarkusTestProfile {
+    private final String environment;
 
-1. **Nhiều TestProfile khác nhau** → Quarkus restart mỗi profile → Nhóm tests cùng profile
-2. **Dev Services start/stop** → Bật `shared=true` cho dev mode
-3. **Quá nhiều @QuarkusTest** → Chuyển logic thuần sang Unit Test (không cần Quarkus)
-4. **Database reset nặng** → Dùng `@TestTransaction` thay vì truncate
+    public DynamicTestProfile(String environment) {
+        this.environment = environment;
+    }
 
-### Q4: Mock vs Dev Services - Khi nào dùng cái nào?
+    @Override
+    public Map<String, String> getConfigOverrides() {
+        return switch(environment) {
+            case "e2e" -> getE2eConfig();
+            case "performance" -> getPerformanceConfig();
+            case "security" -> getSecurityConfig();
+            default -> getDefaultConfig();
+        };
+    }
 
-- **Mock**: Khi test logic isolated (service A gọi service B → mock B)
-- **Dev Services**: Khi test integration thật (API → Service → DB → kiểm tra data)
-- **Best practice**: Mock external services, dùng real DB (Dev Services)
+    private Map<String, String> getE2eConfig() {
+        return Map.of(
+            "app.feature.slow-endpoint", "true",
+            "app.cache.enabled", "false"
+        );
+    }
 
-### Q5: @TestTransaction vs @Transactional trong test?
+    private Map<String, String> getPerformanceConfig() {
+        return Map.of(
+            "app.cache.enabled", "true",
+            "quarkus.hibernate-orm.batch.enabled", "true"
+        );
+    }
 
-- **@TestTransaction**: Auto-rollback sau test → DB clean cho test tiếp theo
-- **@Transactional**: Commit thật → Data persist → Cần cleanup thủ công
-- **Khuyến nghị**: Dùng `@TestTransaction` khi có thể, `@Transactional` + `@BeforeEach` cleanup khi cần data committed (VD: test qua HTTP endpoint)
+    private Map<String, String> getSecurityConfig() {
+        return Map.of(
+            "quarkus.oidc.enabled", "true",
+            "app.security.strict-validation", "true"
+        );
+    }
 
-### Q6: Continuous Testing có chạy @QuarkusIntegrationTest không?
+    private Map<String, String> getDefaultConfig() {
+        return new HashMap<>();
+    }
+}
+```
 
-- Không. Continuous Testing chỉ chạy `@QuarkusTest` (in-process tests)
-- `@QuarkusIntegrationTest` chỉ chạy với `mvn verify`
+### Mục bổ sung: Performance Testing
 
----
+```java
+@QuarkusTest
+public class PerformanceTests {
 
-## Best Practices
+    @Inject
+    UserRepository userRepo;
 
-1. **Unit Test nhiều nhất**: Logic thuần, không cần Quarkus container
-2. **@QuarkusTest cho API testing**: Test REST endpoints với REST-Assured
-3. **Dev Services mặc định**: Dùng DB thật (PostgreSQL container) thay vì H2
-4. **@InjectMock cho external services**: Không test external APIs thật
-5. **@TestTransaction**: Auto-rollback để đảm bảo test isolation
-6. **Minimize TestProfile**: Giảm số lần Quarkus restart
-7. **TestDataFactory**: Tạo test data consistent
-8. **Continuous Testing**: Bật trong dev mode để feedback nhanh
-9. **@QuarkusIntegrationTest**: Ít, chỉ smoke test
-10. **Native test**: Chỉ chạy trong CI/CD, không cần chạy local thường xuyên
+    @Inject
+    OrderService orderService;
 
----
+    // ===== Warm-up (important for measurements) =====
+    @BeforeEach
+    public void warmup() {
+        // JIT compilation warm-up
+        for (int i = 0; i < 100; i++) {
+            userRepo.count();
+        }
+    }
 
-## Tổng kết
+    // ===== Latency Test =====
+    @Test
+    public void testGetUserLatency() {
+        long totalTime = 0;
+        int iterations = 1000;
 
-- **@QuarkusTest**: Component test in-process, CDI injection, mocking
-- **@QuarkusIntegrationTest**: Test binary đã build (JAR/native)
-- **REST-Assured**: HTTP testing framework tích hợp
-- **@InjectMock / @InjectSpy**: Mockito integration cho CDI beans
-- **Dev Services**: Zero-config testcontainers (DB, Kafka, Redis...)
-- **Test Profiles**: Custom configuration per test group
-- **@TestSecurity**: Mock authentication/authorization
-- **Continuous Testing**: Auto-run tests khi code thay đổi
-- **@TestTransaction**: Auto-rollback cho test isolation
+        for (int i = 0; i < iterations; i++) {
+            long start = System.nanoTime();
+            userRepo.findById(1L);
+            long end = System.nanoTime();
+            totalTime += (end - start);
+        }
+
+        long avgLatencyUs = (totalTime / iterations) / 1000;  // Convert to microseconds
+        System.out.println("Average latency: " + avgLatencyUs + " µs");
+
+        // Assert latency SLA
+        assertTrue(avgLatencyUs < 1000, "Latency must be < 1ms");  // 1000 µs
+    }
+
+    // ===== Throughput Test =====
+    @Test
+    public void testInsertThroughput() {
+        int batchSize = 1000;
+        long start = System.currentTimeMillis();
+
+        for (int i = 0; i < batchSize; i++) {
+            User user = new User();
+            user.name = "User " + i;
+            user.email = "user" + i + "@test.com";
+            userRepo.persist(user);
+
+            if ((i + 1) % 100 == 0) {
+                userRepo.flush();
+            }
+        }
+
+        long duration = System.currentTimeMillis() - start;
+        long throughput = (batchSize * 1000) / duration;  // items per second
+        System.out.println("Throughput: " + throughput + " items/sec");
+
+        assertTrue(throughput > 5000, "Should insert > 5000 items/sec");
+    }
+
+    // ===== Memory Test =====
+    @Test
+    public void testMemoryUsage() {
+        Runtime runtime = Runtime.getRuntime();
+        long before = runtime.totalMemory() - runtime.freeMemory();
+
+        // Operation that uses memory
+        List<User> users = userRepo.findAll().list();
+
+        long after = runtime.totalMemory() - runtime.freeMemory();
+        long memoryUsed = (after - before) / 1024 / 1024;  // MB
+
+        System.out.println("Memory used: " + memoryUsed + " MB");
+        assertTrue(memoryUsed < 50, "Should use < 50 MB");
+    }
+
+    // ===== Concurrency Test (Load simulation) =====
+    @Test
+    public void testConcurrentRequests() throws InterruptedException {
+        int threadCount = 10;
+        int requestsPerThread = 100;
+
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch latch = new CountDownLatch(threadCount * requestsPerThread);
+
+        long start = System.currentTimeMillis();
+
+        for (int i = 0; i < threadCount; i++) {
+            executor.submit(() -> {
+                for (int j = 0; j < requestsPerThread; j++) {
+                    try {
+                        userRepo.findById(1L);
+                        latch.countDown();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+
+        latch.await(30, TimeUnit.SECONDS);
+        long duration = System.currentTimeMillis() - start;
+
+        long throughput = (threadCount * requestsPerThread * 1000) / duration;
+        System.out.println("Concurrent throughput: " + throughput + " req/sec");
+    }
+
+    // ===== Stress Test (Resource limits) =====
+    @Test
+    @Transactional
+    public void testConnectionPoolUnderLoad() throws InterruptedException {
+        int connections = 50;
+        ExecutorService executor = Executors.newFixedThreadPool(connections);
+
+        for (int i = 0; i < connections; i++) {
+            executor.submit(() -> {
+                for (int j = 0; j < 10; j++) {
+                    userRepo.find("active", true).list();
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            });
+        }
+
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(2, TimeUnit.MINUTES), "Load test completed");
+        System.out.println("Connection pool held 50 concurrent connections");
+    }
+}
+```
+
+### Mục bổ sung: Test Organization Best Practices
+
+```java
+// ===== Test Naming Convention =====
+/*
+Pattern: test{ComponentUnderTest}_{ScenarioOrInput}_{ExpectedResult}
+
+Examples:
+*/
+@QuarkusTest
+class OrderServiceTest {
+
+    @Test
+    void testCreateOrder_ValidInput_ReturnsOrderWithId() { }
+
+    @Test
+    void testCreateOrder_InvalidUser_ThrowsNotFoundException() { }
+
+    @Test
+    void testGetOrder_UnauthorizedUser_ThrowsForbiddenException() { }
+
+    @Test
+    void testCancelOrder_ActiveOrder_UpdatesStatusToCancelled() { }
+
+    @Test
+    void testCancelOrder_AlreadyCancelled_ThrowsIllegalStateException() { }
+}
+
+// ===== Organize by Feature (BDD-style) =====
+@QuarkusTest
+@DisplayName("Order Management Features")
+class OrderManagementFeatureTest {
+
+    @Nested
+    @DisplayName("Creating Orders")
+    class CreatingOrders {
+        @Test
+        @DisplayName("should create order with valid items")
+        void createValidOrder() { }
+
+        @Test
+        @DisplayName("should fail with duplicate items")
+        void createWithDuplicates() { }
+    }
+
+    @Nested
+    @DisplayName("Cancelling Orders")
+    class CancellingOrders {
+        @Test
+        @DisplayName("should cancel pending order")
+        void cancelPending() { }
+
+        @Test
+        @DisplayName("should fail cancelling completed order")
+        void cancelCompleted() { }
+    }
+}
+```

@@ -1217,3 +1217,373 @@ public Uni<String> good() {
 - **Backpressure**: Buffer, drop, latest strategies
 - **Reactive Messaging**: Kafka/AMQP integration seamless
 - **Golden Rule**: NEVER block the event loop
+
+---
+
+## ===== ENHANCEMENTS =====
+
+### Mục bổ sung sau "Backpressure Strategies": Advanced Operators & Timeout handling
+
+```java
+// ===== Advanced Backpressure Control =====
+@ApplicationScoped
+public class AdvancedBackpressure {
+
+    // ===== 1. limitRequests: Rate limiting (consumer requests gradually) =====
+    public Multi<String> limitRequestsExample() {
+        return fastProducer()
+            .limitRequests(10);  // Consumer request tối đa 10 items
+        // Khi consumer request từng chút một → producer slow down
+    }
+
+    // ===== 2. bufferWithBoundedWriteQueue =====
+    public Multi<String> boundedQueueExample() {
+        return fastProducer()
+            .bufferWithBoundedWriteQueue(1000)
+            .onOverflow()
+            .dropOldest();
+        // Buffer size cố định, drop oldest khi full
+    }
+
+    // ===== 3. scan (stateful map) =====
+    public Multi<Long> scanExample() {
+        return Multi.createFrom().range(1, 5)
+            .scan(0L, (acc, item) -> acc + item);
+        // Output: 0, 1, 3, 6, 10 (running sum)
+    }
+
+    // ===== 4. timeout với recover =====
+    public Multi<String> timeoutWithRecover() {
+        return slowProducer()
+            .ifNoItem().after(Duration.ofSeconds(5))
+            .recoverWithMulti(() -> Multi.createFrom().items("Fallback1", "Fallback2"));
+    }
+
+    // ===== 5. Combining timeout + retry =====
+    public Multi<String> timeoutWithRetry() {
+        return callRemoteApi()
+            .ifNoItem().after(Duration.ofSeconds(2))
+            .retry()
+            .withBackOff(Duration.ofMillis(100), Duration.ofSeconds(1))
+            .atMost(3)
+            .ifNoItem().after(Duration.ofSeconds(10))
+            .fail();
+        // Timeout 2s → Retry maks 3 lần với exponential backoff
+        // Total timeout tối đa 10s
+    }
+
+    // ===== 6. Race & First =====
+    public Uni<String> raceMultipleUnis() {
+        return Uni.combine().any()
+            .of(callService1(), callService2(), callService3());
+        // Return kết quả đầu tiên complete, cancel các cái khác
+    }
+
+    // ===== 7. Merge vs Concatenate vs Combine =====
+    public void mergeVsConcatenate() {
+        Multi<String> m1 = Multi.createFrom().items("a", "b");
+        Multi<String> m2 = Multi.createFrom().items("c", "d");
+
+        // Merge: Interleaved (phụ thuộc timing)
+        Multi<String> merged = Multi.createBy().merging().streams(m1, m2);
+        // Output có thể: a, c, b, d hoặc a, b, c, d (race condition)
+
+        // Concatenate: Sequential (m1 hết → m2)
+        Multi<String> concat = Multi.createBy().concatenating().streams(m1, m2);
+        // Output: a, b, c, d (guaranteed order)
+    }
+
+    // ===== 8. Skip & Take =====
+    public Multi<String> skipAndTake() {
+        return Multi.createFrom().range(1, 100)
+            .skip().first(10)    // Skip 10 items
+            .select().first(20)  // Take 20 items
+            .map(i -> "Item " + i);
+        // Output: Item 11 → Item 30
+    }
+
+    // ===== 9. Debounce (ignore rapid emissions) =====
+    public Multi<String> debounceExample() {
+        return eventStream()
+            .select().where(item -> Duration.ofMillis(300))
+            .run(executorService);
+        // Emit only items separated by > 300ms
+        // Useful: Search box typing → emit search only after user stops typing
+    }
+}
+```
+
+### Mục bổ sung: Testing Reactive Code chi tiết
+
+```java
+@QuarkusTest
+public class ReactiveTestingExamples {
+
+    // ===== Test Uni: await() trong test =====
+    @Test
+    public void testUniSuccessful() {
+        User result = reactiveUserService.getUser(1L)
+            .await().atMost(Duration.ofSeconds(5));
+
+        assertNotNull(result);
+        assertEquals("John", result.name);
+    }
+
+    @Test
+    public void testUniFailure() {
+        assertThrows(NotFoundException.class, () ->
+            reactiveUserService.getUser(99999L)
+                .await().atMost(Duration.ofSeconds(5))
+        );
+    }
+
+    @Test
+    public void testUniWithRetry() {
+        // Mock retry behavior
+        Mockito.when(unreliableService.getData())
+            .thenThrow(new RuntimeException("Fail 1"))
+            .thenThrow(new RuntimeException("Fail 2"))
+            .thenReturn(Uni.createFrom().item("Success"));
+
+        String result = unreliableService.getData()
+            .onFailure().retry().atMost(2)
+            .await().atMost(Duration.ofSeconds(5));
+
+        assertEquals("Success", result);
+    }
+
+    // ===== Test Multi: collect() to List =====
+    @Test
+    public void testMultiCollect() {
+        List<String> items = reactiveService.getStream()
+            .collect().asList()
+            .await().atMost(Duration.ofSeconds(5));
+
+        assertEquals(3, items.size());
+        assertTrue(items.contains("item1"));
+    }
+
+    @Test
+    public void testMultiWithFilter() {
+        List<String> filtered = Multi.createFrom().items("apple", "banana", "apricot")
+            .filter(s -> s.startsWith("a"))
+            .collect().asList()
+            .await().atMost(Duration.ofSeconds(5));
+
+        assertEquals(2, filtered.size());
+    }
+
+    @Test
+    public void testMultiTimeout() {
+        assertThrows(TimeoutException.class, () ->
+            Multi.createFrom().emitter(emitter -> {
+                // Never emit or complete
+            })
+            .collect().asList()
+            .await().atMost(Duration.ofMillis(100))
+        );
+    }
+
+    // ===== Test Backpressure =====
+    @Test
+    public void testBackpressure() {
+        List<Integer> collected = new ArrayList<>();
+        CountDownLatch completed = new CountDownLatch(1);
+
+        Multi.createFrom().range(1, 1000)
+            .onItem().invoke(collected::add)
+            .select().first(50)  // Chỉ lấy 50
+            .subscribe().with(
+                item -> {},
+                failure -> fail(failure),
+                () -> completed.countDown()
+            );
+
+        completed.await(5, TimeUnit.SECONDS);
+        assertEquals(50, collected.size());
+    }
+
+    // ===== Test Merge/Concat Order =====
+    @Test
+    public void testConcatenateOrder() {
+        Multi<String> m1 = Multi.createFrom().items("a", "b");
+        Multi<String> m2 = Multi.createFrom().items("c", "d");
+
+        List<String> result = Multi.createBy().concatenating()
+            .streams(m1, m2)
+            .collect().asList()
+            .await().atMost(Duration.ofSeconds(5));
+
+        assertEquals(List.of("a", "b", "c", "d"), result);
+    }
+
+    // ===== Test Error Handling =====
+    @Test
+    public void testFallback() {
+        String result = failingService.getData()
+            .onFailure().recoverWithItem("fallback-value")
+            .await().atMost(Duration.ofSeconds(5));
+
+        assertEquals("fallback-value", result);
+    }
+
+    // ===== Test Context Propagation =====
+    @Test
+    @TestSecurity(user = "testuser", roles = {"user"})
+    public void testSecurityContextPropagation() {
+        String user = reactiveService.getCurrentUser()
+            .await().atMost(Duration.ofSeconds(5));
+
+        assertEquals("testuser", user);
+        // SecurityContext được propagate qua reactive chain
+    }
+}
+```
+
+### Mục bổ sung: Timeout handling chi tiết
+
+```java
+// ===== Timeout Patterns trong Reactive =====
+@ApplicationScoped
+public class TimeoutPatterns {
+
+    // ===== Pattern 1: Timeout with Fallback =====
+    public Uni<String> getDataWithFallback() {
+        return externalService.fetchData()
+            .ifNoItem().after(Duration.ofSeconds(3))
+            .recoverWithItem("Cache from yesterday");  // ← Fallback
+        // Nếu 3s không reply → trả cache
+    }
+
+    // ===== Pattern 2: Timeout then Fail =====
+    public Uni<String> getDataOrFail() {
+        return externalService.fetchData()
+            .ifNoItem().after(Duration.ofSeconds(5))
+            .fail();  // ← Exception thay vì hang
+        // Nếu 5s không reply → TimeoutException
+    }
+
+    // ===== Pattern 3: Timeout with Circuit Breaker =====
+    public Uni<String> getDataWithCircuitBreaker() {
+        return externalService.fetchData()
+            .ifNoItem().after(Duration.ofSeconds(2))
+            .failWith(() -> new TimeoutException("Service too slow"))
+            .onFailure().transform(e -> {
+                // Log timeout, maybe trigger circuit breaker
+                log.warn("Timeout after 2s: " + e.getMessage());
+                throw new ServiceUnavailableException("Timeout");
+            });
+    }
+
+    // ===== Pattern 4: Multiple timeouts (Progressive backoff) =====
+    public Uni<String> getDataWithProgressiveTimeout() {
+        return externalService.fetchData()
+            // Timeout 1: Quick fail (100ms) → Retry
+            .ifNoItem().after(Duration.ofMillis(100))
+            .recoverWithUni(this::retryWithLongerTimeout)
+            .ifNoItem().after(Duration.ofSeconds(1))
+            .fail();
+    }
+
+    private Uni<String> retryWithLongerTimeout() {
+        return externalService.fetchData()
+            .ifNoItem().after(Duration.ofSeconds(2))
+            .fail();
+    }
+
+    // ===== Pattern 5: Timeout per hop (Chain timeout) =====
+    public Uni<UserData> getComplexData(Long userId) {
+        return getUserProfile(userId)        // Timeout 1s
+            .ifNoItem().after(Duration.ofSeconds(1)).failWith(() -> 
+                new TimeoutException("Profile timeout"))
+            .chain(profile -> getOrders(profile.id))  // Timeout 2s
+            .ifNoItem().after(Duration.ofSeconds(2)).failWith(() ->
+                new TimeoutException("Orders timeout"))
+            .chain(orders -> getPaymentHistory(orders))  // Timeout 1.5s
+            .ifNoItem().after(Duration.ofMillis(1500)).failWith(() ->
+                new TimeoutException("Payment timeout"));
+    }
+
+    // ===== Pattern 6: Timeout with Retry Logic =====
+    public Uni<String> getDataWithTimeoutAndRetry() {
+        return externalService.fetchData()
+            .ifNoItem().after(Duration.ofSeconds(2))
+            .retry()  // ← Retry khi timeout
+            .withBackOff(Duration.ofMillis(100), Duration.ofSeconds(1))
+            .atMost(3)
+            .ifNoItem().after(Duration.ofSeconds(10))  // ← Overall timeout
+            .failWith(() -> new TimeoutException("All retries exhausted"));
+    }
+}
+```
+
+### Mục bổ sung: Reactive REST Testing
+
+```java
+@QuarkusTest
+public class ReactiveRestTestingExamples {
+
+    // ===== REST-Assured với Reactive endpoints =====
+    @Test
+    void testReactiveGet() {
+        given()
+            .when().get("/api/reactive/users/1")
+            .then()
+            .statusCode(200)
+            .body("id", equalTo(1))
+            .body("name", notNullValue());
+        // REST-Assured tự xử lý Uni/Multi response
+    }
+
+    @Test
+    void testReactivePost() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"name\":\"John\",\"email\":\"john@test.com\"}")
+            .when().post("/api/reactive/users")
+            .then()
+            .statusCode(201)
+            .body("id", notNullValue());
+    }
+
+    @Test
+    void testReactiveDelete() {
+        given()
+            .when().delete("/api/reactive/users/999")
+            .then()
+            .statusCode(404);
+    }
+
+    // ===== SSE Streaming =====
+    @Test
+    void testSSEStreaming() throws Exception {
+        // SSE: Server sends events in real-time
+        given()
+            .accept("text/event-stream")
+            .when().get("/api/reactive/events/stream")
+            .then()
+            .statusCode(200)
+            .contentType(containsString("text/event-stream"));
+
+        // Để test actual events: dùng Awaitility
+        List<String> events = new ArrayList<>();
+        AtomicReference<Response> responseRef = new AtomicReference<>();
+
+        Thread thread = new Thread(() -> {
+            Response response = given()
+                .accept("text/event-stream")
+                .when().get("/api/reactive/events/stream");
+            responseRef.set(response);
+
+            // Parse SSE events từ streaming response
+            String body = response.getBody().asString();
+            Arrays.stream(body.split("\n\n"))
+                .filter(event -> !event.isBlank())
+                .forEach(events::add);
+        });
+
+        thread.start();
+        await().timeout(Duration.ofSeconds(5)).until(() -> events.size() > 0);
+    }
+}
+```

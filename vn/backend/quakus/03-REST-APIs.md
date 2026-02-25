@@ -313,6 +313,28 @@ public User getUser(@PathParam("id") Long id) {
 }
 ```
 
+### @ServerExceptionMapper (Quarkus Reactive)
+
+Trong RESTEasy Reactive có thể dùng **@ServerExceptionMapper** — gọn hơn cho từng exception type:
+
+```java
+@Path("/users")
+public class UserResource {
+
+    @ServerExceptionMapper
+    public Response mapNotFound(UserNotFoundException e) {
+        return Response.status(Response.Status.NOT_FOUND)
+            .entity(new ErrorResponse(404, e.getMessage())).build();
+    }
+
+    @ServerExceptionMapper
+    public Response mapValidation(ConstraintViolationException e) {
+        return Response.status(422)
+            .entity(new ErrorResponse(422, e.getMessage())).build();
+    }
+}
+```
+
 ### Global Exception Handler
 
 ```java
@@ -361,6 +383,34 @@ public class UserResource {
     }
 }
 ```
+
+### @RunOnVirtualThread (Project Loom)
+
+Java 21+ Virtual Threads cho phép blocking code chạy trên thread ảnh (rất nhiều concurrent) mà không cần chuyển sang reactive. Quarkus hỗ trợ qua **@RunOnVirtualThread**:
+
+```java
+@Path("/users")
+public class UserResource {
+
+    // Blocking code chạy trên Virtual Thread — không block platform thread
+    @GET
+    @Path("/{id}")
+    @RunOnVirtualThread
+    public User getUser(@PathParam("id") Long id) {
+        return userService.findById(id);  // Blocking JDBC OK
+    }
+
+    @POST
+    @RunOnVirtualThread
+    @Transactional
+    public Response create(User user) {
+        userService.create(user);
+        return Response.status(201).entity(user).build();
+    }
+}
+```
+
+**Khi nào dùng**: Blocking I/O (JDBC, legacy lib) nhưng cần nhiều concurrent request. **So với Reactive**: Đơn giản hơn (code imperative), phù hợp khi không cần backpressure/streaming.
 
 ### Uni và Multi
 

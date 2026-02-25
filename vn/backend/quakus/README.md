@@ -23,6 +23,7 @@ Chào mừng đến với bộ tài liệu luyện phỏng vấn Quarkus! Bộ t
    - JAX-RS Annotations
    - JSON Serialization
    - Exception Handling
+   - @RunOnVirtualThread, @ServerExceptionMapper
 
 4. **[Dependency Injection](./04-Dependency-Injection.md)**
    - CDI (Contexts and Dependency Injection)
@@ -45,8 +46,8 @@ Chào mừng đến với bộ tài liệu luyện phỏng vấn Quarkus! Bộ t
 7. **[Testing](./07-Testing.md)**
    - Unit Testing
    - Integration Testing
-   - Testcontainers
-   - Mocking
+   - Test Resources, Testcontainers
+   - Contract Testing, Mocking
 
 8. **[Native Image](./08-Native-Image.md)**
    - GraalVM Native Image
@@ -59,6 +60,19 @@ Chào mừng đến với bộ tài liệu luyện phỏng vấn Quarkus! Bộ t
    - Messaging (Kafka, AMQP)
    - Monitoring (Metrics, Health)
    - Configuration
+   - Token propagation, LangChain4j, Jakarta Data
+
+10. **[Build & Containerization](./10-Build-Containerization.md)**
+   - Fast-jar structure
+   - Layered builds
+   - Dockerfile JVM / Native
+   - Image size & optimization
+
+11. **[Kubernetes & Cloud Native](./11-Kubernetes-CloudNative.md)**
+   - K8s manifests
+   - Health probes (Liveness, Readiness, Startup)
+   - ConfigMaps & Secrets
+   - HPA & resource tuning
 
 ## 🎯 Cách sử dụng
 
@@ -120,6 +134,8 @@ Mỗi file tài liệu bao gồm:
 6. Reactive Programming
 7. Native Image
 8. Advanced Topics
+9. Build & Containerization
+10. Kubernetes & Cloud Native
 
 ## ✅ Checklist trước Phỏng vấn
 

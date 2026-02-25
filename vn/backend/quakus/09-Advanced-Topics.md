@@ -12,9 +12,428 @@
 9. [GraphQL](#graphql)
 10. [OpenAPI & Swagger](#openapi--swagger)
 11. [Caching](#caching)
-12. [Writing Custom Extensions](#writing-custom-extensions)
-13. [Deployment Strategies](#deployment-strategies)
-14. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+12. [LangChain4j & Panache Next (Jakarta Data)](#langchain4j--panache-next-jakarta-data)
+13. [Writing Custom Extensions](#writing-custom-extensions)
+14. [Deployment Strategies](#deployment-strategies)
+15. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+
+---
+
+## ===== ENHANCEMENTS =====
+
+### Mục bổ sung trước "Security chi tiết": Rate Limiting & Quota
+
+```xml
+<!-- Dependency -->
+<dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-rate-limiter</artifactId>
+</dependency>
+```
+
+```java
+@ApplicationScoped
+@Path("/api")
+public class RateLimitedResource {
+
+    // ===== Rate Limit per endpoint =====
+    @GET
+    @Path("/public/search")
+    @RateLimiter(value = 100)  // 100 requests
+    public Response search(@QueryParam("q") String query) {
+        return Response.ok("Results for: " + query).build();
+    }
+
+    // ===== Rate Limit with time window =====
+    @GET
+    @Path("/data")
+    @RateLimiter(value = 1000, window = 1, windowUnit = ChronoUnit.MINUTES)
+    // 1000 requests per minute
+    public Response getData() {
+        return Response.ok("Data").build();
+    }
+
+    // ===== Custom Rate Limit Key (per user, IP, API key...) =====
+    @POST
+    @Path("/submit")
+    public Response submit(@Context SecurityContext context) {
+        // Rate limit per user
+        String userId = context.getUserPrincipal().getName();
+        return submitWithRateLimit(userId);
+    }
+
+    private Response submitWithRateLimit(String userId) {
+        // Would use RateLimitKeyProvider to track per user
+        return Response.ok("Submitted").build();
+    }
+}
+
+// ===== Advanced: Token Bucket Limiter =====
+@ApplicationScoped
+public class TokenBucketRateLimiter {
+    private final Map<String, TokenBucket> buckets = new ConcurrentHashMap<>();
+    private final int capacity = 100;
+    private final long refillRatePerSecond = 10;
+
+    public boolean allowRequest(String userId) {
+        TokenBucket bucket = buckets.computeIfAbsent(userId, 
+            k -> new TokenBucket(capacity, refillRatePerSecond));
+        return bucket.tryConsume();
+    }
+
+    private static class TokenBucket {
+        private double tokens;
+        private final double capacity;
+        private final double refillRatePerSecond;
+        private long lastRefillTime = System.currentTimeMillis();
+
+        TokenBucket(int capacity, long refillRate) {
+            this.tokens = capacity;
+            this.capacity = capacity;
+            this.refillRatePerSecond = refillRate;
+        }
+
+        synchronized boolean tryConsume() {
+            refill();
+            if (tokens >= 1.0) {
+                tokens -= 1.0;
+                return true;
+            }
+            return false;
+        }
+
+        private void refill() {
+            long now = System.currentTimeMillis();
+            long elapsed = now - lastRefillTime;
+            tokens = Math.min(capacity, tokens + (elapsed / 1000.0) * refillRatePerSecond);
+            lastRefillTime = now;
+        }
+    }
+}
+
+// ===== API Quota (Usage tracking) =====
+@ApplicationScoped
+public class ApiQuotaService {
+
+    @Inject
+    DataSource dataSource;
+
+    // Track API usage per user/plan
+    public record UserQuota(String userId, String plan, int monthlyLimit, int used) {}
+
+    public boolean checkQuota(String userId) {
+        UserQuota quota = getQuota(userId);
+        return quota.used < quota.monthlyLimit;
+    }
+
+    public void incrementUsage(String userId) {
+        // Increment usage counter
+        try (Connection conn = dataSource.getConnection()) {
+            conn.createStatement().execute(
+                "UPDATE user_quotas SET used = used + 1 WHERE user_id = '" + userId + "'");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private UserQuota getQuota(String userId) {
+        // Query từ database
+        return new UserQuota(userId, "pro", 1000, 500);
+    }
+}
+```
+
+### Mục bổ sung sau "Security": Extended Security Examples
+
+```java
+// ===== Role-based Access with Dynamic Permissions =====
+@ApplicationScoped
+public class DynamicPermissionCheck {
+
+    @Inject
+    PermissionService permissionService;
+
+    @Inject
+    SecurityIdentity identity;
+
+    // Check permission thay vì role cứng
+    public boolean hasPermission(String resource, String action) {
+        String userId = identity.getPrincipal().getName();
+        return permissionService.hasPermission(userId, resource, action);
+    }
+}
+
+@Path("/api/documents")
+public class DocumentResource {
+
+    @Inject
+    DynamicPermissionCheck permCheck;
+
+    @GET
+    @Path("/{id}")
+    public Document getDocument(@PathParam("id") Long id) {
+        if (!permCheck.hasPermission("document:" + id, "read")) {
+            throw new ForbiddenException("No read permission");
+        }
+        return documentService.findById(id);
+    }
+
+    @PUT
+    @Path("/{id}")
+    public Document updateDocument(@PathParam("id") Long id, DocumentUpdateDTO dto) {
+        if (!permCheck.hasPermission("document:" + id, "write")) {
+            throw new ForbiddenException("No write permission");
+        }
+        return documentService.update(id, dto);
+    }
+}
+
+// ===== Attribute-based Access Control (ABAC) =====
+@ApplicationScoped
+public class AttributeBasedAccessControl {
+
+    public boolean isAllowed(String action, Map<String, Object> attributes) {
+        // Complex policy evaluation
+        boolean isAdmin = (boolean) attributes.getOrDefault("isAdmin", false);
+        String department = (String) attributes.get("department");
+        LocalDateTime createdDate = (LocalDateTime) attributes.get("createdDate");
+        int daysSinceCreation = ChronoUnit.DAYS.between(createdDate, LocalDateTime.now());
+
+        return switch(action) {
+            case "view" -> !isAdmin || department.equals("internal");
+            case "edit" -> isAdmin && daysSinceCreation < 30;
+            case "delete" -> isAdmin;
+            default -> false;
+        };
+    }
+}
+```
+
+### Mục bổ sung sau Observability: Enhanced Metrics Examples
+
+```java
+@ApplicationScoped
+public class EnhancedMetricsExamples {
+
+    @Inject
+    MeterRegistry registry;
+
+    // ===== Business Metrics (khác technical metrics) =====
+    public void trackOrderMetrics(Order order) {
+        // Revenue metric
+        registry.gauge("orders.revenue.total",
+            Tags.of("currency", "VND"),
+            order.totalAmount, Number::doubleValue);
+
+        // Order status breakdown
+        registry.counter("orders.created",
+            "status", order.status.toString()).increment();
+
+        // Customer lifetime value (LTV)
+        registry.gauge("customer.ltv",
+            Tags.of("customerId", order.customerId.toString()),
+            calculateLTV(order.customerId), Number::doubleValue);
+    }
+
+    // ===== System Health Metrics =====
+    public void registerHealthMetrics() {
+        // Queue depth (message queue size)
+        Gauge.builder("queue.depth", this::getQueueDepth)
+            .description("Pending messages in queue")
+            .tag("queue", "payment-processing")
+            .register(registry);
+
+        // Cache hit rate
+        Gauge.builder("cache.hitrate", this::getCacheHitRate)
+            .description("Cache hit percentage")
+            .tag("cache", "product-cache")
+            .register(registry);
+
+        // External API response time
+        Timer.builder("external.api.latency")
+            .publishPercentiles(0.5, 0.95, 0.99)
+            .tag("api", "payment-gateway")
+            .register(registry);
+    }
+
+    private double getQueueDepth() {
+        // Query queue depth
+        return 0;
+    }
+
+    private double getCacheHitRate() {
+        // Calculate cache hit ratio
+        return 0.85;
+    }
+}
+```
+
+### Mục bổ sung: Caching Strategies Detailed
+
+```java
+@ApplicationScoped
+public class CachingStrategies {
+
+    // ===== Strategy 1: Cache-Aside (Manual) =====
+    // Check cache → if miss → load from source → update cache
+    public record CachedProduct(Product product, long timestamp) {}
+
+    private final Map<Long, CachedProduct> cache = new ConcurrentHashMap<>();
+    private static final long CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minutes
+
+    public Product getProductCacheAside(Long id) {
+        CachedProduct cached = cache.get(id);
+
+        // Check if valid
+        if (cached != null && System.currentTimeMillis() - cached.timestamp < CACHE_TTL_MS) {
+            return cached.product;  // ← Cache HIT
+        }
+
+        // Cache MISS: Load from DB
+        Product product = productRepository.findById(id);
+
+        // Update cache
+        cache.put(id, new CachedProduct(product, System.currentTimeMillis()));
+
+        return product;
+    }
+
+    // ===== Strategy 2: Write-Through =====
+    // Khi update: update cache + update DB
+    // Lúc read: từ cache (guaranteed fresh)
+    @Transactional
+    public void updateProductWriteThrough(Long id, ProductUpdateDTO dto) {
+        // Update source
+        Product product = productRepository.findById(id);
+        product.name = dto.name();
+        product.price = dto.price();
+        productRepository.update("name = ?1, price = ?2 WHERE id = ?3",
+            dto.name(), dto.price(), id);
+
+        // Update cache
+        cache.put(id, new CachedProduct(product, System.currentTimeMillis()));
+    }
+
+    // ===== Strategy 3: Write-Behind (Async) =====
+    // Khi update: update cache SAJA → queue update DB async
+    // Trade-off: Cache up-to-date, but DB might lag
+    private final Queue<Update> updateQueue = new ConcurrentLinkedQueue<>();
+
+    public void updateProductWriteBehind(Long id, ProductUpdateDTO dto) {
+        // Update cache immediately
+        Product product = new Product();
+        product.id = id;
+        product.name = dto.name();
+        product.price = dto.price();
+        cache.put(id, new CachedProduct(product, System.currentTimeMillis()));
+
+        // Queue untuk update DB async
+        updateQueue.offer(new Update(id, dto));
+    }
+
+    // Background worker
+    @Scheduled(every = "5s")
+    @Transactional
+    void flushCacheUpdates() {
+        while (!updateQueue.isEmpty()) {
+            Update update = updateQueue.poll();
+            productRepository.update("name = ?1, price = ?2 WHERE id = ?3",
+                update.dto.name(), update.dto.price(), update.id);
+        }
+    }
+
+    private record Update(Long id, ProductUpdateDTO dto) {}
+
+    // ===== Strategy 4: Cache Invalidation Pattern =====
+    public void invalidateDependentCaches(Long productId) {
+        // Cascading invalidation
+        cache.remove(productId);  // Product cache
+
+        // Invalidate related caches
+        List<Long> cartIds = getCartsContaining(productId);
+        cartIds.forEach(cartId -> invalidateCartCache(cartId));
+
+        List<Long> orderIds = getOrdersContaining(productId);
+        orderIds.forEach(orderId -> invalidateOrderCache(orderId));
+    }
+
+    // ===== Strategy 5: Refresh-ahead (Proactive) =====
+    // Sebelum cache expire → refresh dari source
+    @Scheduled(every = "1m")
+    void refreshAheadCache() {
+        long now = System.currentTimeMillis();
+        cache.forEach((id, cached) -> {
+            long age = now - cached.timestamp;
+            if (age > CACHE_TTL_MS * 0.8) {  // Refresh at 80% TTL
+                Product fresh = productRepository.findById(id);
+                cache.put(id, new CachedProduct(fresh, now));
+                log.debug("Refreshed cache for product " + id);
+            }
+        });
+    }
+}
+```
+
+### Mục bổ sung: Distributed Caching (Redis)
+
+```properties
+# Redis Configuration
+quarkus.redis.hosts=redis://localhost:6379
+quarkus.redis.password=
+quarkus.redis.max-pool-size=8
+```
+
+```java
+@ApplicationScoped
+public class DistributedCachingWithRedis {
+
+    @Inject
+    ReactiveRedisClient redis;  // Quarkus reactive Redis client
+
+    // ===== Cache-Aside with Redis =====
+    public Uni<Product> getProductWithRedis(Long id) {
+        String cacheKey = "product:" + id;
+
+        return redis.get(cacheKey)
+            .onItem().ifNotNull()
+            .transform(cached -> {
+                // Cache HIT: Deserialize từ Redis
+                return JsonUtil.parse(cached, Product.class);
+            })
+            .onItem().ifNull()
+            .switchTo(() -> {
+                // Cache MISS: Load từ DB
+                return productRepository.findById(id)
+                    .invoke(product -> {
+                        // Update Redis async
+                        redis.setex(cacheKey, 300, JsonUtil.serialize(product))
+                            .subscribe().with(ignore -> {}, log::error);
+                    });
+            });
+    }
+
+    // ===== Invalidate cache (FIFO queue) =====
+    public Uni<Void> invalidateProductCache(Long id) {
+        String cacheKey = "product:" + id;
+        return redis.del(List.of(cacheKey))
+            .replaceWithVoid();
+    }
+
+    // ===== Cache warming (preload frequently accessed data) =====
+    @Scheduled(every = "30m")
+    public void warmupCaches() {
+        topProductService.getTopProducts(100)
+            .subscribe().with(products -> {
+                products.forEach(product -> {
+                    String cacheKey = "product:" + product.id;
+                    redis.setex(cacheKey, 3600, JsonUtil.serialize(product))
+                        .subscribe().with(ignore -> {}, log::error);
+                });
+                log.info("Warmed up " + products.size() + " products in Redis");
+            });
+    }
+}
+```
 
 ---
 
@@ -252,6 +671,55 @@ public class OrderService {
     }
 }
 ```
+
+### Token propagation (REST Client)
+
+Khi gọi downstream API từ Quarkus (REST Client), cần **truyền JWT/access token** từ request hiện tại sang service kia (OAuth2 token propagation).
+
+```xml
+<dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-oidc-client</artifactId>
+</dependency>
+<dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-rest-client-reactive</artifactId>
+</dependency>
+```
+
+```properties
+# REST Client gọi service B, dùng token của user hiện tại
+quarkus.oidc-client.client-id=quarkus-app
+quarkus.oidc-client.credentials.secret=secret
+# Propagate token từ SecurityIdentity sang outgoing request
+quarkus.rest-client."com.example.DownstreamClient".header-provider=io.quarkus.oidc.client.reactive.filter.OidcClientRequestReactiveFilter
+```
+
+```java
+@RegisterRestClient(configKey = "downstream-api")
+@Path("/api")
+public interface DownstreamClient {
+    @GET
+    @Path("/data")
+    Uni<Data> getData();
+}
+
+// OidcClientRequestReactiveFilter tự gắn Bearer token (từ context) vào header
+// Hoặc thủ công:
+@ApplicationScoped
+public class TokenPropagationFilter implements ClientRequestFilter {
+    @Inject SecurityIdentity identity;
+    @Override
+    public void filter(ClientRequestContext ctx) {
+        if (identity.getCredential(AccessTokenCredential.class) != null) {
+            String token = identity.getCredential(AccessTokenCredential.class).getToken();
+            ctx.getHeaders().putSingle("Authorization", "Bearer " + token);
+        }
+    }
+}
+```
+
+**Security testing**: Test endpoint có token propagation với `@TestSecurity` và mock REST Client — xem [07-Testing.md - Testing Security](./07-Testing.md#testing-security).
 
 ---
 
@@ -1456,6 +1924,63 @@ quarkus.cache.redis."products".prefix=product-cache
 
 ---
 
+## LangChain4j & Panache Next (Jakarta Data)
+
+### LangChain4j (AI integration)
+
+**LangChain4j** tích hợp LLM/AI vào ứng dụng Java (chat, RAG, embeddings). Quarkus có extension `quarkus-langchain4j` (community/experimental).
+
+- **Use case**: Chatbot, semantic search, document Q&A, tool-calling.
+- **Khái niệm**: Embedding store, tools, chat memory, model (OpenAI, Azure, local).
+- **Ví dụ**: REST endpoint nhận câu hỏi → gọi LLM với context từ vector DB → trả về câu trả lời.
+
+```xml
+<!-- Experimental / community -->
+<dependency>
+    <groupId>io.quarkiverse.langchain4j</groupId>
+    <artifactId>quarkus-langchain4j</artifactId>
+</dependency>
+```
+
+Cấu hình: API key (OpenAI/Azure), model name, embedding dimension. Tham khảo [LangChain4j](https://docs.langchain4j.dev/) và Quarkus guide tương ứng.
+
+### Panache Next (Jakarta Data)
+
+**Jakarta Data** là spec mới (Jakarta EE 10+) cho repository pattern chuẩn. **Panache Next** trong Quarkus là implementation Jakarta Data, thay thế dần Panache "classic".
+
+- **Repository**: Interface kế thừa `DataRepository<Entity, ID>`, method query derive từ tên (giống Spring Data).
+- **So với Panache classic**: Chuẩn Jakarta, không còn Active Record bắt buộc, tách biệt entity và repository rõ hơn.
+
+```java
+// Jakarta Data repository (Panache Next)
+@Entity
+public class Product {
+    @Id
+    public Long id;
+    public String name;
+    public BigDecimal price;
+}
+
+@Repository
+public interface ProductRepository extends DataRepository<Product, Long> {
+    List<Product> findByName(String name);
+    List<Product> findByPriceLessThan(BigDecimal max);
+    long countByActiveTrue();
+}
+```
+
+```xml
+<dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-hibernate-orm-panache</artifactId>
+</dependency>
+<!-- Panache Next / Jakarta Data (khi đã stable) -->
+```
+
+Hiện tại Panache classic vẫn là lựa chọn chính; Panache Next dùng khi dự án mới theo chuẩn Jakarta Data.
+
+---
+
 ## Writing Custom Extensions
 
 ### Cấu trúc Extension
@@ -1535,11 +2060,27 @@ quarkus.kubernetes.replicas=3
 quarkus.kubernetes.liveness-probe.http-action-path=/q/health/live
 quarkus.kubernetes.readiness-probe.http-action-path=/q/health/ready
 quarkus.kubernetes.startup-probe.http-action-path=/q/health/started
+quarkus.kubernetes.liveness-probe.initial-delay=10
+quarkus.kubernetes.readiness-probe.initial-delay=5
+
+# ConfigMaps & Secrets (mount vào app)
+quarkus.kubernetes.config-maps=app-config
+quarkus.kubernetes.secrets=db-secret
+# Hoặc generate ConfigMap từ application.properties:
+quarkus.kubernetes.config-env-vars.app.host=config.app.host
+quarkus.kubernetes.config-env-vars.app.port=config.app.port
+
+# HPA (Horizontal Pod Autoscaler)
+quarkus.kubernetes.autoscaling.max-replicas=10
+quarkus.kubernetes.autoscaling.min-replicas=2
+quarkus.kubernetes.autoscaling.cpu-target-utilization=70
 
 # Service
 quarkus.kubernetes.service-type=ClusterIP
 quarkus.kubernetes.ports.http.container-port=8080
 ```
+
+**ConfigMaps/Secrets**: Tạo ConfigMap/Secret trên cluster, sau đó khai báo `quarkus.kubernetes.config-maps` / `quarkus.kubernetes.secrets` để Quarkus gắn vào Deployment (env hoặc volume). Chi tiết K8s manifests, probes, HPA — xem [11-Kubernetes-CloudNative.md](./11-Kubernetes-CloudNative.md).
 
 ```bash
 # Generate K8s manifests

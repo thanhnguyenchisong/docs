@@ -163,6 +163,41 @@ quarkus.datasource.password=${DB_PASSWORD}
 
 ---
 
+## Build-time vs Runtime Configuration
+
+Quarkus phân biệt rõ **Build-time** và **Runtime** config — quan trọng cho Native Image và tối ưu.
+
+### Build-time properties
+
+- **Đọc và xử lý lúc build** (khi chạy `./mvnw package`). Giá trị có thể được "bake" vào bytecode hoặc native binary.
+- **Ví dụ**: `quarkus.datasource.db-kind`, `quarkus.hibernate-orm.database.generation`, extension config (port mặc định, features bật/tắt).
+- **Đặc điểm**: Thay đổi giá trị thường **yêu cầu build lại** (đặc biệt với Native Image).
+
+### Runtime properties
+
+- **Đọc lúc ứng dụng khởi động** (khi chạy `java -jar ...` hoặc native binary). Có thể override bằng biến môi trường, `-D`, hoặc config file bên ngoài.
+- **Ví dụ**: `quarkus.datasource.jdbc.url`, `quarkus.datasource.username`, `quarkus.http.port`, `${ENV_VAR}`.
+- **Đặc điểm**: Có thể thay đổi **không cần build lại** (trừ khi extension chỉ hỗ trợ build-time).
+
+### Cách xác định và best practice
+
+```properties
+# Build-time: db-kind quyết định driver/extension được load
+quarkus.datasource.db-kind=postgresql
+
+# Runtime: URL/user/password thay đổi theo môi trường
+quarkus.datasource.jdbc.url=jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:quarkus}
+quarkus.datasource.username=${DB_USER}
+quarkus.datasource.password=${DB_PASSWORD}
+
+# Native Image: Build-time config bị "bake" vào binary
+# → Đổi DB từ PostgreSQL sang MySQL cần build lại native
+```
+
+**Quy tắc**: Cấu hình **phụ thuộc môi trường** (URL, credentials, feature flags theo env) nên dùng **runtime** (biến môi trường, profile). Cấu hình **kiến trúc ứng dụng** (loại DB, bật extension nào) thường là **build-time**.
+
+---
+
 ## Build và Runtime
 
 ### Các lệnh cơ bản (Maven)
