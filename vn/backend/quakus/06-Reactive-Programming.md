@@ -46,6 +46,8 @@ DB trả kết quả → Event Loop pick up → Xử lý tiếp → Trả respon
 → Throughput cao hơn nhiều lần
 ```
 
+Cơ chế non-blocking: Mỗi IO thread không bị “giữ chặt” bởi một request. Khi một request cần chờ IO (ví dụ đọc DB, gọi API), thread sẽ “nhả ra” và tiếp tục xử lý request khác. Khi dữ liệu sẵn sàng, Event Loop sẽ kích hoạt callback để tiếp tục xử lý. Nhờ vậy, một thread có thể phục vụ rất nhiều request song song.
+
 ### So sánh Performance
 
 | Metric | Blocking (200 threads) | Reactive (2 event loops) |
