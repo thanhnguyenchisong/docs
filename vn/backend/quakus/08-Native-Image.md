@@ -21,6 +21,21 @@
 ---
 
 ## Tổng quan Native Image
+Spring (Spring Native):
+
+Vốn được thiết kế để chạy trên JVM, nên nhiều cơ chế của Spring dựa vào reflection và runtime scanning.
+
+Khi build Native Image, Spring phải bổ sung thêm cấu hình, metadata để GraalVM biết trước những gì cần giữ lại.
+
+Điều này khiến việc build native phức tạp hơn và đôi khi không tương thích với một số thư viện.
+
+Quarkus:
+
+Ngay từ đầu đã được thiết kế để tối ưu cho Native Image.
+
+Thực hiện augmentation ở build time, ghi lại metadata, loại bỏ reflection và runtime scanning.
+
+Nhờ vậy, quá trình build Native Image đơn giản hơn, startup nhanh hơn và footprint nhỏ hơn.
 
 ### Native Image là gì?
 
