@@ -893,6 +893,60 @@ public class DlqProcessor {
 }
 ```
 
+### Backpressure & Streaming trong Messaging
+
+**Backpressure**: Khi consumer xử lý chậm hơn producer, cần cơ chế “kéo” (pull) hoặc “chặn” (flow control) để tránh tràn bộ nhớ và làm chậm producer.
+
+- **Kafka**: Consumer commit offset theo batch → tốc độ đọc do consumer quyết định (pull-based). Cấu hình `max.poll.records`, `fetch.min.bytes` để điều chỉnh throughput.
+- **SmallRye Reactive Messaging**: Channel dùng **Reactive Streams** (backpressure có sẵn). Khi dùng `Multi`/`Uni`, downstream chỉ request N item → upstream không emit quá N → tránh overflow.
+
+**Streaming (Multi) với Kafka:**
+
+```java
+// Consumer dạng stream: nhận từng message, xử lý reactive, có backpressure
+@ApplicationScoped
+public class OrderStreamConsumer {
+
+    @Incoming("order-events-in")
+    public Multi<ProcessedOrder> processStream(Multi<Message<String>> stream) {
+        return stream
+            .onItem().transformToUniAndConcatenate(msg -> {
+                // Xử lý từng message; Uni chỉ complete khi xong → backpressure
+                return processOne(msg.getPayload())
+                    .map(result -> {
+                        msg.ack();
+                        return result;
+                    });
+            })
+            .onOverflow().buffer(1000);  // Buffer tối đa 1000 nếu downstream chậm
+    }
+}
+```
+
+**Ví dụ backpressure với Emitter (producer):**
+
+```java
+// Emitter.send() trả về CompletionStage — có thể block khi channel đầy (backpressure)
+@Inject
+@Channel("orders")
+Emitter<OrderEvent> emitter;
+
+public CompletionStage<Void> sendWithBackpressure(OrderEvent event) {
+    return emitter.send(event).toCompletableFuture();
+    // Nếu channel đầy (consumer chậm), send() sẽ "chờ" (backpressure)
+}
+```
+
+Cấu hình giới hạn channel (SmallRye):
+
+```properties
+# Buffer size outgoing channel (backpressure khi buffer đầy)
+mp.messaging.outgoing.order-events.buffer-size=1024
+mp.messaging.outgoing.order-events.wait-for-ack=true
+```
+
+---
+
 ### RabbitMQ (AMQP)
 
 ```xml

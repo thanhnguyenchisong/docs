@@ -30,6 +30,14 @@
 4. **Standards-Based**: JAX-RS, CDI, JPA, etc.
 5. **Native Image**: GraalVM native compilation
 
+### Tại sao cần Quarkus? (Why need Quarkus?)
+
+- **Microservices & Containers**: Mỗi service khởi động nhanh (vài chục ms) → scale nhanh, tiết kiệm tài nguyên so với JVM truyền thống (vài giây startup).
+- **Serverless / FaaS**: Cold start phải rất thấp; Native Image giảm thời gian và memory so với JVM.
+- **Chi phí hạ tầng**: Ít RAM hơn → chạy nhiều pod hơn trên cùng máy; startup nhanh → scale-to-zero khả thi.
+- **Developer experience**: Dev Mode (hot reload), Dev Services (DB/Kafka tự start), Continuous Testing → vòng lặp phát triển nhanh.
+- **Cloud-Native & Kubernetes-first**: Thiết kế cho môi trường cloud và Kubernetes: health probes, config từ ConfigMap/Secret, resource limits, scale từ 0 (với Knative). Framework ưu tiên container và orchestration thay vì máy truyền thống.
+
 ---
 
 ## Quarkus vs Spring Boot

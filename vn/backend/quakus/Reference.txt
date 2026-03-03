@@ -152,82 +152,57 @@ FILES HIỆN TẠI:
 • 03-REST-APIs.md
 • 04-Dependency-Injection.md
 • 05-Data-Access.md
+• 06-Reactive-Programming.md
 • 07-Testing.md
 • 08-Native-Image.md
 • 09-Advanced-Topics.md
+• 10-Build-Containerization.md
+• 11-Kubernetes-CloudNative.md
 
 MAP THEO PHASE:
 PHASE 1 – Foundation & Core Architecture
-✅ 01-Quarkus-Fundamentals.md (Overview, build-time, extensions, native)
-✅ 02-Getting-Started.md (CLI, Dev Mode, Dev UI, Profiles)
+✅ 01-Quarkus-Fundamentals.md (Overview, Why need Quarkus, Cloud-Native & K8s-first, build-time, extensions, Build-time vs Runtime properties)
+✅ 02-Getting-Started.md (CLI, Dev Mode, Dev UI, Dev Services, Profiles)
 ✅ 04-Dependency-Injection.md (Arc/CDI, scopes, producers, events, config basics)
-⚠️ Missing detail: “Build-time vs Runtime properties” needs explicit section (currently rải rác).
 
 PHASE 2 – Web & API Layer
-✅ 03-REST-APIs.md (RESTEasy Reactive, JAX-RS, validation, exception handling)
-⚠️ Missing file: Reactive Programming (Mutiny, context propagation, reactive HTTP client, Virtual Threads vs Reactive) — chưa có file riêng.
+✅ 03-REST-APIs.md (RESTEasy Reactive, JAX-RS, validation, exception handling, Blocking vs Non-blocking, @RunOnVirtualThread)
+✅ 06-Reactive-Programming.md (Mutiny Uni/Multi, context propagation, reactive HTTP client, Virtual Threads vs Reactive)
 
 PHASE 3 – Data & Persistence
-✅ 05-Data-Access.md (ORM, Panache, transactions, migrations, caching, reactive ORM)
-⚠️ Hibernate Reactive section có nhưng thiếu “reactive transaction management pitfalls” chuyên sâu.
+✅ 05-Data-Access.md (ORM, Panache Active Record/Repository, CRUD, pagination/sorting, @Transactional, Flyway/Liquibase, Dev Services DB, Hibernate Reactive, reactive transaction pitfalls)
 
 PHASE 4 – Messaging & Event-Driven
-✅ 09-Advanced-Topics.md (Messaging Kafka/AMQP)
-⚠️ Thiếu “Backpressure & streaming” ví dụ chi tiết trong messaging.
+✅ 09-Advanced-Topics.md (Messaging Kafka/AMQP, @Incoming/@Outgoing, Backpressure & streaming)
 
 PHASE 5 – Security & Identity
-✅ 09-Advanced-Topics.md (OIDC/JWT/RBAC)
-⚠️ Thiếu “Token propagation” (REST client propagation) và “Security testing” mapping (đang ở 07-Testing).
+✅ 09-Advanced-Topics.md (OIDC/JWT/RBAC, Token propagation REST client)
+✅ 07-Testing.md (Testing Security, @TestSecurity)
 
 PHASE 6 – Observability & Resilience
-✅ 09-Advanced-Topics.md (Health/Metrics/Tracing)
-✅ 09-Advanced-Topics.md (Fault Tolerance)
-⚠️ Thiếu “structured logging + MDC examples” mapping rõ (đã có nhưng chưa đánh dấu trong reference).
+✅ 09-Advanced-Topics.md (Health Liveness/Readiness/Startup, Micrometer, OpenTelemetry, structured logging + MDC, Fault Tolerance)
 
 PHASE 7 – Testing
-✅ 07-Testing.md (QuarkusTest, InjectMock, Dev Services, Integration test)
-⚠️ Thiếu “Test Resources” explicit section (currently brief).
-⚠️ Missing “Contract testing” và “Testcontainers basics” trong reference.
+✅ 07-Testing.md (@QuarkusTest, @InjectMock, Continuous Testing, Test Resources, Testcontainers, Contract testing, Integration test với Dev Services)
 
 PHASE 8 – Build, Packaging & Performance
-✅ 08-Native-Image.md (GraalVM/Mandrel, build, trade-offs)
-⚠️ Missing file/section: Build system (fast-jar, layered builds) và Containerization (Dockerfile.jvm/native).
+✅ 08-Native-Image.md (GraalVM/Mandrel, native build, JVM vs Native trade-offs)
+✅ 10-Build-Containerization.md (Fast-jar, layered builds, Dockerfile.jvm/native, image optimization)
 
 PHASE 9 – Kubernetes & Cloud Native
-⚠️ Chỉ có trong 09-Advanced-Topics.md “Deployment Strategies”, thiếu chi tiết “ConfigMaps/Secrets, probes, HPA”.
+✅ 11-Kubernetes-CloudNative.md (K8s manifests, Health probes, ConfigMaps/Secrets, HPA, resource tuning)
 
 PHASE 10 – Advanced & Emerging
-✅ 09-Advanced-Topics.md (WebSockets, gRPC, GraphQL, Extensions)
-⚠️ Missing: LangChain4j, Panache Next (Jakarta Data) — chưa có section.
+✅ 09-Advanced-Topics.md (WebSockets Next, gRPC, GraphQL, LangChain4j, Panache Next Jakarta Data, Custom Extensions)
 
 ________________________________________
-MISSING / TODO (CẦN BỔ SUNG FILE/SECTION)
+MISSING / TODO (ĐÃ BỔ SUNG HOẶC ĐÃ CÓ FILE)
 
-1) 06-Reactive-Programming.md
-   • Mutiny (Uni/Multi/operators)
-   • Context propagation
-   • Reactive HTTP Client
-   • Virtual Threads vs Reactive
+1) ✅ 06-Reactive-Programming.md — ĐÃ CÓ (Mutiny, context propagation, reactive HTTP client, Virtual Threads vs Reactive)
+2) ✅ 10-Build-Containerization.md — ĐÃ CÓ (Fast-jar, layered builds, Dockerfile.jvm/native, optimization)
+3) ✅ 11-Kubernetes-CloudNative.md — ĐÃ CÓ (K8s manifests, probes, ConfigMaps/Secrets, HPA, resource tuning)
+4) ✅ Security: Token propagation + Security testing — ĐÃ CÓ trong 09 và 07
+5) ✅ Messaging: Backpressure & streaming — ĐÃ BỔ SUNG trong 09 (Messaging section)
+6) ✅ Advanced: LangChain4j, Panache Next — ĐÃ CÓ trong 09
 
-2) Build & Containerization (new file)
-   • Fast-jar structure
-   • Layered builds
-   • Dockerfile.jvm / Dockerfile.native
-   • Image size & runtime optimization
-
-3) Kubernetes & Cloud Native (new file)
-   • K8s manifests, probes
-   • ConfigMaps/Secrets
-   • HPA/autoscaling
-   • Resource tuning
-
-4) Security additions
-   • Token propagation (REST client)
-   • Security testing mapping to 07-Testing.md
-
-5) Messaging add-ons
-   • Backpressure/streaming details
-
-6) Advanced additions
-   • LangChain4j
-   • Panache Next (Jakarta Data)
+Cập nhật: Đã kiểm tra và bổ sung theo Reference; tất cả các mục đã được map tới file tương ứng và viết chi tiết.
