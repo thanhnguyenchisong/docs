@@ -23,6 +23,14 @@
 
 ### Mục bổ sung trước "Security chi tiết": Rate Limiting & Quota
 
+**Lý thuyết – Rate Limiting & Quota**
+
+- **Rate limiting**: Giới hạn số request mà client (IP, user, API key) được gửi trong một khoảng thời gian (ví dụ 100 request/phút). Mục đích: tránh lạm dụng API, bảo vệ backend khỏi quá tải, chia sẻ tài nguyên công bằng. Có thể áp dụng toàn cục hoặc theo endpoint.
+- **Quota**: Giới hạn mức sử dụng theo gói (ví dụ 1000 call/tháng cho plan Pro). Khác với rate limit (theo thời gian ngắn), quota thường đếm theo chu kỳ dài (tháng, năm) và lưu trữ (DB, Redis).
+- **Token bucket**: Mô hình rate limit phổ biến: một “xô” có sức chứa N token, mỗi request tiêu thụ 1 token; token được nạp lại theo thời gian (refill rate). Cho phép burst (nhiều request liên tiếp) trong giới hạn số token còn lại.
+
+---
+
 ```xml
 <!-- Dependency -->
 <dependency>
@@ -145,6 +153,14 @@ public class ApiQuotaService {
 
 ### Mục bổ sung sau "Security": Extended Security Examples
 
+**Lý thuyết – RBAC vs Dynamic Permissions vs ABAC**
+
+- **RBAC (Role-Based Access Control)**: Phân quyền theo **vai trò** (admin, user, manager). User được gán role; mỗi role có tập quyền cố định. Đơn giản, phù hợp khi số vai trò ít và quyền gắn chặt với vai trò.
+- **Dynamic permissions**: Quyền không chỉ từ role mà có thể lấy từ DB/dịch vụ (ví dụ “user X được phép đọc document Y”). Linh hoạt hơn RBAC thuần, phù hợp khi quyền phụ thuộc quan hệ (ownership, sharing).
+- **ABAC (Attribute-Based Access Control)**: Quyết định cho phép hay không dựa trên **thuộc tính** (user, resource, action, context – ví dụ department, thời gian tạo). Phù hợp chính sách phức tạp (ví dụ “admin hoặc người tạo trong 30 ngày mới được sửa”).
+
+---
+
 ```java
 // ===== Role-based Access with Dynamic Permissions =====
 @ApplicationScoped
@@ -211,6 +227,13 @@ public class AttributeBasedAccessControl {
 
 ### Mục bổ sung sau Observability: Enhanced Metrics Examples
 
+**Lý thuyết – Business metrics vs System metrics**
+
+- **System (technical) metrics**: Đo hạ tầng và runtime – CPU, memory, GC, HTTP request count/latency, DB pool, queue depth. Dùng để monitor sức khỏe hệ thống và debug hiệu năng.
+- **Business metrics**: Đo hành vi nghiệp vụ – số đơn tạo, doanh thu, tỷ lệ thanh toán thất bại, LTV theo khách hàng. Dùng để theo dõi KPI và ảnh hưởng trực tiếp đến product. Nên expose qua cùng hệ thống (ví dụ Prometheus) với labels rõ ràng để dashboard và alert.
+
+---
+
 ```java
 @ApplicationScoped
 public class EnhancedMetricsExamples {
@@ -269,6 +292,16 @@ public class EnhancedMetricsExamples {
 ```
 
 ### Mục bổ sung: Caching Strategies Detailed
+
+**Lý thuyết – Các chiến lược cache**
+
+- **Cache-Aside (Lazy Loading)**: App đọc cache trước; nếu miss thì đọc DB (hoặc nguồn khác), rồi ghi vào cache. Cache không tham gia vào write. Đơn giản, phù hợp read-heavy; write phải tự invalidate/update cache nếu cần.
+- **Write-Through**: Mỗi lần ghi vào DB thì ghi luôn vào cache (đồng bộ). Read luôn từ cache → dữ liệu nhất quán với DB tại thời điểm write; write chậm hơn vì phải ghi hai nơi.
+- **Write-Behind (Write-Back)**: Ghi vào cache ngay, ghi DB bất đồng bộ (queue + worker). Throughput write cao, nhưng có khoảng thời gian cache “mới hơn” DB → rủi ro mất dữ liệu nếu crash trước khi flush.
+- **Refresh-ahead**: Trước khi cache hết hạn (ví dụ 80% TTL), chủ động gọi nguồn và cập nhật cache. Giảm latency khi key được truy cập đều đặn.
+- **Invalidation**: Khi dữ liệu thay đổi (ví dụ product update), xóa hoặc cập nhật cache tương ứng (và có thể cascade sang cache phụ thuộc như cart, order).
+
+---
 
 ```java
 @ApplicationScoped
@@ -376,6 +409,13 @@ public class CachingStrategies {
 
 ### Mục bổ sung: Distributed Caching (Redis)
 
+**Lý thuyết – Cache cục bộ vs phân tán**
+
+- **Cache cục bộ (in-process)**: Lưu trong memory của từng instance (Caffeine, ConcurrentHashMap). Rất nhanh, không network; nhưng mỗi instance có bản copy riêng → không chia sẻ, dung lượng bị giới hạn bởi RAM một JVM, và khi scale nhiều replica thì cache không thống nhất.
+- **Cache phân tán (Redis, Memcached)**: Lưu trên server riêng, nhiều instance app dùng chung. Dữ liệu cache nhất quán giữa các instance, có thể tăng dung lượng bằng cluster; đổi lại có latency mạng và phụ thuộc vào độ sẵn sàng của Redis. Phù hợp khi cần share cache giữa nhiều pod hoặc cache lớn.
+
+---
+
 ```properties
 # Redis Configuration
 quarkus.redis.hosts=redis://localhost:6379
@@ -439,6 +479,18 @@ public class DistributedCachingWithRedis {
 
 ## Security chi tiết (OIDC, JWT, RBAC)
 
+### Lý thuyết – Authentication vs Authorization
+
+- **Authentication (Xác thực)**: Trả lời câu hỏi “Bạn là ai?” – xác minh danh tính (username/password, token, certificate). Kết quả thường là một **principal** (user/service) và có thể kèm **credentials** (JWT, session).
+- **Authorization (Phân quyền)**: Trả lời “Bạn được phép làm gì?” – kiểm tra quyền truy cập tài nguyên hoặc thao tác (role, permission). Chạy sau khi đã xác thực; nếu chưa xác thực thì thường trả 401, đã xác thực nhưng không đủ quyền thì 403.
+- Trong Quarkus: Authentication do OIDC/JWT/Basic Auth xử lý và tạo ra **SecurityIdentity**; Authorization dùng **@RolesAllowed**, **@Authenticated**, hoặc check programmatic (identity.hasRole, permission service).
+
+### Lý thuyết – OIDC (OpenID Connect) và JWT
+
+- **OIDC**: Là lớp nhận dạng trên nền **OAuth 2.0**. OAuth2 giải quyết “ủy quyền” (authorization) để truy cập tài nguyên; OIDC bổ sung “nhận dạng” (identity) – trả về thông tin về user (claims) qua **ID Token** (JWT). Luồng điển hình: app chuyển user tới IdP (Keycloak, Auth0) → đăng nhập → IdP redirect về app kèm **authorization code** hoặc **tokens** (access token, id token, refresh token).
+- **JWT (JSON Web Token)**: Chuẩn token dạng JSON (header.payload.signature). **Payload** chứa claims (sub, exp, roles, email, …). Server xác minh chữ ký (public key từ IdP) và đọc claims để biết user và quyền. Access token JWT thường dùng cho API: client gửi trong header `Authorization: Bearer <token>`.
+- **Keycloak**: IdP mã nguồn mở, hỗ trợ OIDC/OAuth2, quản lý user, role, client; Quarkus tích hợp qua extension **quarkus-oidc** (validate token, map roles vào SecurityIdentity).
+
 ### Tổng quan Security trong Quarkus
 
 ```
@@ -463,6 +515,8 @@ public class DistributedCachingWithRedis {
 ```
 
 ### OIDC (OpenID Connect) với Keycloak
+
+**Giải thích ngắn**: Ứng dụng cấu hình **auth-server-url** (Keycloak), **client-id** và **credentials**. Keycloak cấp và ký JWT; Quarkus xác thực chữ ký và issuer/audience, đọc claims (roles từ **role-claim-path**) và tạo **SecurityIdentity**. Kiểu **service** dùng cho backend API (chỉ validate token); **web-app** dùng khi có UI và redirect đăng nhập.
 
 ```xml
 <dependency>
@@ -615,6 +669,8 @@ public class AuthResource {
 
 ### Custom Security (SecurityIdentityAugmentor)
 
+**Giải thích**: **SecurityIdentityAugmentor** cho phép **bổ sung** thông tin vào **SecurityIdentity** sau khi authentication (ví dụ lấy thêm roles/permissions từ DB, thêm attribute tenant). Augmentor chạy mỗi request; trả về `Uni<SecurityIdentity>`. Dùng khi roles không nằm hết trong JWT (ví dụ permissions động theo user trong DB).
+
 ```java
 // Thêm custom roles/permissions vào SecurityIdentity
 @ApplicationScoped
@@ -650,6 +706,8 @@ public class CustomSecurityAugmentor implements SecurityIdentityAugmentor {
 ```
 
 ### Programmatic Security Check
+
+**Giải thích**: Ngoài **@RolesAllowed** (check role cố định), đôi khi cần **kiểm tra theo dữ liệu** (ví dụ “chỉ xem order của mình”). Trong method service/resource, inject **SecurityIdentity** và gọi **hasRole**, **getPrincipal().getName()**, so sánh với resource (order.getUserId()). Nếu không thỏa thì ném **ForbiddenException** (403). Đây là **authorization ở tầng business** thay vì chỉ tầng endpoint.
 
 ```java
 @ApplicationScoped
@@ -724,6 +782,18 @@ public class TokenPropagationFilter implements ClientRequestFilter {
 ---
 
 ## Messaging chi tiết (Kafka, AMQP)
+
+### Lý thuyết – Event-driven và Message-driven
+
+- **Event-driven**: Thành phần phản ứng với **sự kiện** (order created, payment completed). Producer không gọi trực tiếp consumer mà **phát** event; consumer đăng ký và xử lý bất đồng bộ. Giảm coupling, dễ mở rộng (thêm consumer không đổi producer).
+- **Message-driven**: Giao tiếp qua **message broker** (Kafka, RabbitMQ). Producer gửi message vào topic/queue; consumer lấy message và xử lý. Đảm bảo delivery (persist, retry), hỗ trợ nhiều consumer (competiting consumers) hoặc broadcast (nhiều subscriber).
+- **SmallRye Reactive Messaging**: Chuẩn **Eclipse MicroProfile Reactive Messaging**. App khai báo **channel** (incoming/outgoing); **connector** (smallrye-kafka, smallrye-amqp) nối channel với broker. Code dùng **@Incoming**, **@Outgoing**; có thể trả về **Uni/Multi** (reactive). Backpressure được truyền theo chuẩn Reactive Streams.
+
+### Lý thuyết – Kafka vs AMQP (RabbitMQ)
+
+- **Kafka**: Log phân tán, message persist theo partition, consumer đọc theo offset. Mạnh về throughput, replay, event sourcing; phù hợp stream sự kiện, log aggregation. Semantics: at-least-once hoặc exactly-once (với config phù hợp).
+- **AMQP (RabbitMQ)**: Queue truyền thống, message được ack sau khi xử lý xong. Hỗ trợ routing (exchange, routing key), nhiều pattern (work queue, pub/sub, RPC). Phù hợp task queue, RPC, tin nhắn cần giao nhận rõ ràng.
+- **Quarkus**: Cùng API **@Incoming/@Outgoing**, chỉ đổi connector (smallrye-kafka vs smallrye-amqp) và config (topic vs address, bootstrap.servers vs amqp-host).
 
 ### SmallRye Reactive Messaging Architecture
 
@@ -877,6 +947,8 @@ public class OrderEventConsumer {
 
 ### Dead Letter Queue (DLQ)
 
+**Giải thích**: Khi consumer **không xử lý được** message sau nhiều lần retry (exception, invalid payload), cần tránh message đó quay lại topic chính và block progress. **Dead Letter Queue (DLQ)** là topic/queue riêng để chứa các message “chết”: sau khi retry hết, connector chuyển message sang DLQ thay vì discard. Team có thể xem DLQ, sửa dữ liệu hoặc code rồi replay, hoặc xử lý thủ công. Cấu hình qua `failure-strategy=dead-letter-queue` và `dead-letter-queue.topic`.
+
 ```java
 // Khi message processing thất bại sau tất cả retry
 // → Message tự động gửi vào DLQ topic
@@ -974,6 +1046,17 @@ mp.messaging.incoming.notifications-in.durable=true
 ---
 
 ## Fault Tolerance & Resilience
+
+### Lý thuyết – Resilience và các mẫu
+
+- **Resilience (phục hồi)**: Khả năng hệ thống chịu lỗi (network, dependency down, timeout) và vẫn phục vụ hoặc degrade gracefully thay vì sập hàng loạt.
+- **@Retry**: Thử lại khi gọi thất bại (transient error). Có thể cấu hình số lần, delay, backoff (exponential), chỉ retry với một số exception. Dùng khi lỗi tạm thời (network glitch, DB busy).
+- **@Timeout**: Giới hạn thời gian chờ kết quả; quá thời gian thì hủy và có thể ném exception. Tránh treo vô hạn khi dependency chậm.
+- **@CircuitBreaker**: Khi tỷ lệ lỗi vượt ngưỡng (ví dụ 50% trong 10 request), “mở mạch” – các lời gọi tiếp theo **không** gọi downstream nữa mà fail nhanh (hoặc chạy fallback). Sau một khoảng thời gian (delay) chuyển sang **half-open**: thử vài request; nếu thành công thì đóng mạch, nếu vẫn lỗi thì mở lại. Bảo vệ downstream khỏi bị quá tải và cho nó thời gian hồi phục.
+- **@Fallback**: Khi có exception (hoặc circuit open), gọi method/handler thay thế để trả về giá trị mặc định hoặc từ nguồn dự phòng (cache, default value). Cải thiện availability từ phía client.
+- **@Bulkhead**: Giới hạn số lời gọi đồng thời (thread pool hoặc semaphore) tới một tài nguyên. Tránh một service lỗi “kéo” hết thread và làm nghẽn toàn bộ.
+
+Thứ tự áp dụng thường: **Bulkhead → CircuitBreaker → Timeout → Retry → method → Fallback**.
 
 ### SmallRye Fault Tolerance
 
@@ -1171,6 +1254,20 @@ Response
 
 ## Observability (Metrics, Health, Tracing)
 
+### Lý thuyết – Ba trụ cột Observability
+
+- **Logging**: Ghi lại sự kiện theo thời gian (request, lỗi, business event). Dùng để debug và audit. Trong production nên dùng **structured logging** (JSON) và gắn trace-id/span-id để nối với tracing.
+- **Metrics**: Số đo định lượng (counter, gauge, histogram/timer) – ví dụ request/s, latency p99, error rate, queue size. Thu thập theo chu kỳ; dùng cho dashboard và alert. **Micrometer** là abstraction phổ biến trong Java; Quarkus export qua Prometheus (/q/metrics).
+- **Tracing (Distributed Tracing)**: Theo dõi một **request** xuyên qua nhiều service; mỗi bước là một **span** (có parent/child), tất cả gắn **trace-id**. Giúp thấy latency từng bước và tìm nút thắt cổ chai. **OpenTelemetry** là chuẩn; Quarkus tích hợp và tự tạo span cho HTTP, DB, messaging.
+
+Ba trụ này bổ sung cho nhau: log cho chi tiết từng event, metrics cho tổng quan và cảnh báo, tracing cho luồng request qua nhiều service.
+
+### Lý thuyết – Health checks trong Kubernetes
+
+- **Liveness**: “Process còn sống không?”. Fail → Kubernetes restart container. Nên **nhẹ**, không phụ thuộc DB hay dependency ngoài (tránh restart vô tội vạ khi DB tạm down).
+- **Readiness**: “Có sẵn sàng nhận traffic không?”. Fail → Pod bị bỏ khỏi Service (không nhận request mới). Có thể check DB, cache, downstream. Khi dependency hồi phục, probe pass lại → Pod được đưa lại vào load balancer.
+- **Startup**: Dùng khi container khởi động chậm (ví dụ native image). Kubernetes không coi container “chưa sẵn sàng” cho đến khi startup probe pass; trong lúc đó liveness chưa áp dụng. Tránh kill container đang khởi động.
+
 ### Health Checks
 
 ```xml
@@ -1258,6 +1355,8 @@ public class ExternalApiHealthCheck implements HealthCheck {
 
 ### Metrics (Micrometer)
 
+**Giải thích ngắn**: **Micrometer** là facade cho metrics trong Java (giống SLF4J cho logging): app gọi API Micrometer (counter, timer, gauge, distribution summary); **registry** (Prometheus, JMX, …) export ra định dạng tương ứng. **Prometheus** kéo metrics từ endpoint `/q/metrics` theo chu kỳ; từ đó Grafana vẽ dashboard hoặc Prometheus alert. Quarkus tự gắn metrics cho HTTP, JVM, DB pool; bạn có thể thêm **business metrics** (số đơn, doanh thu) qua `MeterRegistry` hoặc annotation **@Counted**, **@Timed**.
+
 ```xml
 <dependency>
     <groupId>io.quarkus</groupId>
@@ -1338,6 +1437,8 @@ quarkus.micrometer.binder.system=true
 
 ### Distributed Tracing (OpenTelemetry)
 
+**Giải thích ngắn**: **OpenTelemetry** là chuẩn mở cho tracing (và metrics/logs): mỗi request được gán **trace-id**; mỗi bước xử lý (HTTP handler, gọi DB, gọi REST client, Kafka) tạo **span** (parent/child). Các span gửi tới collector (Jaeger, Zipkin, OTLP); từ đó xem **waterfall** (latency từng bước) và tìm nút thắt. Quarkus tự instrument HTTP, JDBC, REST Client, Kafka; bạn có thể thêm span tùy chỉnh qua **@WithSpan** hoặc **Tracer** API.
+
 ```xml
 <dependency>
     <groupId>io.quarkus</groupId>
@@ -1401,6 +1502,8 @@ public class OrderService {
 
 ### Structured Logging
 
+**Giải thích ngắn**: **Structured logging** (log dạng JSON với field cố định) giúp log aggregation (Elasticsearch, Loki) index và tìm kiếm theo field (trace_id, user_id, level). **MDC (Mapped Diagnostic Context)** cho phép gắn key-value vào context của thread; mọi log trong cùng request tự động kèm các key đó (Quarkus và SmallRye Context Propagation propagate MDC qua reactive context). Khi chạy trong K8s/cloud, log thường được thu qua stdout và đẩy vào central store; format JSON + trace_id giúp nối log với trace.
+
 ```properties
 # JSON logging (cho Elasticsearch/Loki)
 quarkus.log.console.json=true
@@ -1430,6 +1533,12 @@ public class OrderService {
 ---
 
 ## Configuration nâng cao
+
+### Lý thuyết – Type-safe config và Config Sources
+
+- **@ConfigProperty**: Inject từng property (string, int, optional). Đơn giản nhưng nhiều property sẽ rải rác và dễ sai tên.
+- **@ConfigMapping**: Định nghĩa **interface** với method tương ứng từng key (prefix); Quarkus generate implementation và map từ config. Type-safe, nhóm config theo domain (app.database.*, app.features.*), hỗ trợ nested, optional, list, map. Thay đổi config (thêm/xóa key) dễ bắt lỗi tại compile time.
+- **Config sources và thứ tự ưu tiên**: Config có thể đến từ nhiều nguồn (application.properties, env vars, system properties, Kubernetes ConfigMap, Vault, …). MicroProfile Config định nghĩa **ordinal** (số ưu tiên); source có ordinal cao hơn override thấp hơn. Thường: system properties > env > file; giúp override theo môi trường mà không sửa code.
 
 ### @ConfigMapping (Type-safe Config)
 
@@ -1552,6 +1661,12 @@ quarkus.http.port=8080                                            # Runtime
 
 ## Scheduler & Cron Jobs
 
+### Lý thuyết – Scheduled jobs trong ứng dụng
+
+- **Fixed interval**: Chạy lặp theo khoảng thời gian cố định (ví dụ mỗi 10 giây). Đơn giản; nhưng nếu lần chạy trước vượt quá interval thì lần sau có thể bị trễ hoặc chồng lấn (cần `concurrentExecution = SKIP` nếu không muốn chạy song song).
+- **Cron**: Chạy theo biểu thức cron (phút, giờ, ngày, tháng, thứ). Phù hợp job theo lịch (daily report lúc 2h sáng, cleanup mỗi Chủ nhật). Cron có thể lấy từ config (`{app.report.cron}`) để đổi theo môi trường mà không build lại.
+- **Lưu ý khi scale**: Nhiều replica cùng chạy scheduler → job chạy trùng mỗi replica. Cần cơ chế **singleton** (chỉ một instance chạy, ví dụ leader election hoặc scheduler phân tán như Quartz cluster) nếu job chỉ được chạy một lần trên cluster.
+
 ```xml
 <dependency>
     <groupId>io.quarkus</groupId>
@@ -1656,6 +1771,12 @@ Ví dụ:
 
 ## WebSocket
 
+### Lý thuyết – WebSocket và so sánh với HTTP
+
+- **HTTP**: Request–response; client gửi request, server trả response rồi kết thúc. Muốn dữ liệu mới phải gửi request lại (polling) hoặc dùng long polling/SSE.
+- **WebSocket**: Kết nối **hai chiều, liên tục** (full-duplex). Sau khi handshake (HTTP Upgrade), cả client và server có thể gửi frame bất kỳ lúc nào. Phù hợp real-time: chat, notification, dashboard live, game. Quarkus hỗ trợ **quarkus-websockets-next** (reactive, dựa trên Vert.x).
+- **Path params và scaling**: WebSocket có state (connection); khi scale nhiều pod cần **sticky session** hoặc shared state (pub/sub qua Redis) để message gửi đúng connection.
+
 ```xml
 <dependency>
     <groupId>io.quarkus</groupId>
@@ -1707,6 +1828,11 @@ public class ChatWebSocket {
 ---
 
 ## gRPC
+
+### Lý thuyết – gRPC và khi nào dùng
+
+- **gRPC**: Framework RPC của Google, dùng **HTTP/2** và **Protocol Buffers (Protobuf)**. Định nghĩa service và message trong file `.proto`; code client/server được generate. Hỗ trợ **streaming** (client, server, hoặc cả hai chiều). Ưu điểm: hiệu năng (binary, multiplexing), contract rõ (schema), streaming.
+- **So với REST**: REST (JSON over HTTP) dễ debug, tool phổ biến; gRPC mạnh về throughput và streaming, phù hợp **service-to-service** trong microservices. Quarkus extension **quarkus-grpc** tích hợp với Mutiny (Uni/Multi).
 
 ```xml
 <dependency>
@@ -1777,6 +1903,11 @@ quarkus.grpc.server.use-separate-server=true
 ---
 
 ## GraphQL
+
+### Lý thuyết – GraphQL và so sánh với REST
+
+- **GraphQL**: Ngôn ngữ truy vấn do client định nghĩa **đúng dữ liệu cần** (fields, nested). Một endpoint (thường `/graphql`); client gửi query/mutation. Server trả về đúng cấu trúc được yêu cầu, tránh over-fetching (REST trả cả object to) hoặc under-fetching (phải gọi nhiều API). Phù hợp frontend linh hoạt (mobile vs desktop, nhiều màn hình).
+- **Query / Mutation / Subscription**: **Query** đọc dữ liệu; **Mutation** thay đổi dữ liệu; **Subscription** (trong SmallRye GraphQL) cho real-time (stream). Quarkus dùng **quarkus-smallrye-graphql**; có UI tại `/q/graphql-ui` (dev).
 
 ```xml
 <dependency>
@@ -1855,6 +1986,11 @@ mutation {
 
 ## OpenAPI & Swagger
 
+### Lý thuyết – OpenAPI và tài liệu API
+
+- **OpenAPI (Swagger)**: Chuẩn mô tả REST API (endpoints, method, params, body, response code). File YAML/JSON có thể dùng để generate client, server stub, hoặc tài liệu. **quarkus-smallrye-openapi** scan JAX-RS resource và annotation để **tự sinh** OpenAPI document; có thể bổ sung **@Tag**, **@Operation**, **@APIResponse**, **@Parameter** để mô tả rõ hơn.
+- **Swagger UI**: Giao diện web để xem và gọi thử API theo OpenAPI. Quarkus phục vụ tại `/q/swagger-ui`; có thể bật cả trong production nếu cần.
+
 ```xml
 <dependency>
     <groupId>io.quarkus</groupId>
@@ -1910,6 +2046,11 @@ mp.openapi.extensions.smallrye.info.description=API documentation
 ---
 
 ## Caching
+
+### Lý thuyết – Cache và Quarkus Cache
+
+- **Mục đích cache**: Giảm latency và tải cho nguồn dữ liệu (DB, API ngoài) bằng cách lưu kết quả đã tính/đã đọc. Lần sau cùng input thì trả từ cache thay vì gọi lại nguồn. Đánh đổi: cần quản lý **invalidation** (khi dữ liệu gốc thay đổi) và **dung lượng** (TTL, size limit).
+- **Quarkus Cache (quarkus-cache)**: Dùng **annotation** để cache kết quả method: **@CacheResult** (cache theo key, key mặc định từ tham số), **@CacheInvalidate** (xóa một entry khi method chạy), **@CacheInvalidateAll** (xóa toàn bộ cache). Backend mặc định là **Caffeine** (in-memory); có thể dùng **Redis** qua quarkus-cache-redis. Cache name cấu hình trong application.properties (TTL, max size).
 
 ```xml
 <dependency>
@@ -1980,6 +2121,11 @@ quarkus.cache.redis."products".prefix=product-cache
 
 ## LangChain4j & Panache Next (Jakarta Data)
 
+### Lý thuyết – LangChain4j (AI integration)
+
+- **LangChain4j**: Thư viện Java lấy cảm hứng từ LangChain (Python), giúp tích hợp **LLM** (Large Language Model) vào ứng dụng: gửi prompt, nhận completion, quản lý conversation, gọi **tools** (function calling). Hỗ trợ **RAG** (Retrieval-Augmented Generation): lấy tài liệu từ vector store theo embedding, đưa vào context cho LLM trả lời. Các model thường dùng: OpenAI, Azure OpenAI, local (Ollama).
+- **Quarkus**: Extension **quarkus-langchain4j** (community/experimental) tích hợp LangChain4j với CDI, config qua application.properties. Use case: chatbot, semantic search, document Q&A, agent có tool-calling.
+
 ### LangChain4j (AI integration)
 
 **LangChain4j** tích hợp LLM/AI vào ứng dụng Java (chat, RAG, embeddings). Quarkus có extension `quarkus-langchain4j` (community/experimental).
@@ -1997,6 +2143,11 @@ quarkus.cache.redis."products".prefix=product-cache
 ```
 
 Cấu hình: API key (OpenAI/Azure), model name, embedding dimension. Tham khảo [LangChain4j](https://docs.langchain4j.dev/) và Quarkus guide tương ứng.
+
+### Lý thuyết – Panache Next (Jakarta Data)
+
+- **Jakarta Data**: Đặc tả mới của Jakarta EE cho **repository pattern** chuẩn: interface kế thừa **DataRepository<Entity, ID>**, method query **derive từ tên** (findByName, findByPriceLessThan) thay vì viết HQL/JQL. Giống tư tưởng Spring Data JPA nhưng nằm trong chuẩn Jakarta.
+- **Panache Next**: Implementation Jakarta Data trong Quarkus; tách bạch entity (chỉ model) và repository (interface). So với Panache “classic”: không còn Active Record bắt buộc, API chuẩn hơn, tương lai sẽ là hướng chính cho data access trong Quarkus.
 
 ### Panache Next (Jakarta Data)
 
@@ -2036,6 +2187,12 @@ Hiện tại Panache classic vẫn là lựa chọn chính; Panache Next dùng k
 ---
 
 ## Writing Custom Extensions
+
+### Lý thuyết – Extension trong Quarkus
+
+- **Extension** trong Quarkus gồm hai phần: **deployment** (build-time) và **runtime**. **Deployment** chạy lúc build (Maven/Gradle): scan classpath, đăng ký bean, generate bytecode, ghi lại “bước khởi tạo” qua **Recorder**. **Runtime** là code chạy trong app: Recorder gọi vào đây khi app start để thực hiện các bước đã ghi (ví dụ khởi tạo client, đăng ký route).
+- **Build step**: Trong deployment module, method đánh dấu **@BuildStep** chạy trong build; có thể produce **BuildItem** (FeatureBuildItem, AdditionalBeanBuildItem, …) để Quarkus core hoặc extension khác dùng. **@Record(ExecutionTime.RUNTIME_INIT)** + Recorder cho phép “ghi” lệnh chạy lúc runtime.
+- **Config**: Extension thường có **ConfigRoot** (interface với @ConfigMapping) để đọc config từ application.properties; deployment đọc config và truyền vào Recorder. Nhờ vậy extension có thể bật/tắt tính năng, cấu hình URL, timeouts, v.v. mà không cần sửa code.
 
 ### Cấu trúc Extension
 
@@ -2093,6 +2250,13 @@ public class MyExtensionRecorder {
 ---
 
 ## Deployment Strategies
+
+### Lý thuyết – Các hướng triển khai
+
+- **Kubernetes**: Triển khai dạng Deployment + Service; config qua `quarkus.kubernetes.*` (resources, probes, env, ConfigMap/Secret). Quarkus generate manifest (YAML/JSON); có thể deploy bằng `kubectl apply` hoặc để Quarkus apply khi build (`deploy=true`). Phù hợp microservices trên cluster.
+- **Knative**: Chạy workload serverless trên Kubernetes: scale về 0 khi không có request, scale theo request. Cấu hình `deployment-target=knative`, min-scale, max-scale. Phù hợp event-driven, workload không cần chạy liên tục.
+- **AWS Lambda / Serverless**: Build native hoặc JVM, đóng gói theo format Lambda; Quarkus có extension **quarkus-amazon-lambda**. Cold start quan trọng → native image thường được ưu tiên.
+- **OpenShift**: Tương thích Kubernetes; Quarkus có target `openshift` (DeploymentConfig, Route, …). Có thể dùng S2I (Source-to-Image) hoặc deploy image build sẵn.
 
 ### Kubernetes
 
