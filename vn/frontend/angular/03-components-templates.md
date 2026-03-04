@@ -62,12 +62,12 @@ export class ProductListComponent {
 
 ## Data binding
 
-| Cú pháp | Hướng | Ví dụ |
-|--------|--------|--------|
-| `{{ expr }}` | Component → DOM | `{{ title }}` |
-| `[property]="expr"` | Component → DOM (property) | `[disabled]="isLoading"` |
-| `(event)="handler()"` | DOM → Component | `(click)="onSubmit()"` |
-| `[(ngModel)]="prop"` | Two-way (cần FormsModule) | `[(ngModel)]="username"` |
+| Cú pháp | Hướng | Ví dụ | Name |
+|--------|--------|--------|-----|
+| `{{ expr }}` | Component → DOM | `{{ title }}` | Interpolation |
+| `[property]="expr"` | Component → DOM (property) | `[disabled]="isLoading"` | Property binding |
+| `(event)="handler()"` | DOM → Component | `(click)="onSubmit()"` | Event binding |
+| `[(ngModel)]="prop"` | Two-way (cần FormsModule) | `[(ngModel)]="username"` | Two-way binding |
 
 ```html
 <p>{{ product.name }}</p>
