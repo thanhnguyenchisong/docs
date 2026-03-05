@@ -126,6 +126,12 @@ Router **match theo thứ tự** từ trên xuống. Route **cụ thể** nên �
 ### Children — route con (nested routes)
 
 Route có thể có **children**: danh sách route con. URL khi vào route con = **path cha + path con**. Component của route cha phải có `<router-outlet />` để Router render component của route con vào đó.
+Có nghĩa là sẽ hiển thị đc cả ui cha vs con trong cùng 1 UI (giữ UI của cha)
+```typescipt
+<!-- product-list.component.html -->
+<product-list-ui ...></product-list-ui>
+<router-outlet></router-outlet> <!-- nơi hiện ProductDetail -->
+```
 
 Ví dụ: `/products` hiển thị ProductListComponent; `/products/1` hiển thị ProductDetailComponent. Có hai cách: khai báo hai route ngang hàng `products` và `products/:id` (như ví dụ đầu), hoặc dùng children:
 
