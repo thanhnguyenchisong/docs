@@ -192,6 +192,17 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
 **HttpClient trả về Observable, tại sao không dùng Promise?**  
 Observable hỗ trợ cancel (unsubscribe), retry, kết hợp nhiều request (switchMap, combineLatest), và tích hợp với async pipe. Có thể chuyển sang Promise bằng `firstValueFrom`/`lastValueFrom` nếu cần.
+| Tiêu chí | Observable | Promise |
+|---------|------------|---------|
+| Số lần emit | Nhiều lần (0, 1 hoặc vô hạn) | Chỉ 1 lần |
+| Lazy / Eager | Lazy – chỉ chạy khi `subscribe()` | Eager – chạy ngay khi tạo |
+| Hủy (cancel) | Có thể hủy (unsubscribe) | Không hủy được |
+| Dòng dữ liệu (stream) | Hỗ trợ đầy đủ | Không hỗ trợ |
+| Operators | Rất nhiều (map, filter, debounce…) | Không có |
+| Xử lý dữ liệu liên tục | Rất tốt (realtime, events) | Không phù hợp |
+| Tích hợp Angular | Mặc định trong HttpClient, Forms, Router | Ít dùng |
+| Dễ dùng với async/await | Không trực tiếp (cần `firstValueFrom`) | Rất tốt |
+| Ứng dụng | WebSocket, search debounce, form changes, event streams | Login, load config 1 lần, fetch đơn |
 
 **Khi nào dùng interceptors?**  
 Thêm token, header chung, log, xử lý lỗi chung (401/403), transform request/response.
