@@ -550,7 +550,29 @@ Có. Guard functional dùng `inject(Service)` trong body. Angular injector có s
 `navigate(commands, extras)` nhận **mảng** path (vd `['/products', id]`) và options (queryParams, replaceUrl…). `navigateByUrl(url)` nhận **chuỗi URL** đầy đủ. Ưu tiên `navigate` khi build path từ biến; `navigateByUrl` khi đã có sẵn URL.
 
 **Khi nào dùng resolver thay vì load trong component?**  
-Khi bạn muốn **dữ liệu sẵn** trước khi component render (tránh flash loading/empty), và muốn tách logic load ra khỏi component. Nếu trang có thể hiển thị skeleton rồi load sau thì load trong component (ngOnInit) cũng được.
+Bạn cần dữ liệu có sẵn trước khi component được render
+
+Để tránh:
+ - màn hình trắng
+ - layout nháy
+ - flash content
+
+→ Router sẽ chờ resolver xong mới hiển thị component.
+
+Bạn muốn tách logic lấy dữ liệu ra khỏi component
+- Component sẽ chỉ lo hiển thị UI → dễ test, dễ bảo trì.
+
+Bạn muốn chặn điều hướng nếu dữ liệu không tồn tại
+- Ví dụ: /products/999 không tồn tại → redirect sang trang 404 trước khi component load.
+
+Bạn cần dữ liệu để guard hoặc quyết định điều hướng
+
+Resolver có thể chạy trước component — phù hợp cho:
+- kiểm tra quyền
+- kiểm tra ownership
+- kiểm tra trạng thái resource. Nếu trang có thể hiển thị skeleton rồi load sau thì load trong component (ngOnInit) cũng được.
+
+Những job nặng thì resolver thường trả về stream còn subcribe sẽ ở trong component hoặc thực hiện, hoặc job nặng xử lý trong component thôi (ngOnInit)
 
 **RouterOutlet có thể có nhiều không?**  
 Có. Một outlet **không tên** (primary) và nhiều **named outlet** (vd `<router-outlet name="sidebar">`). Route con khai báo `outlet: 'sidebar'` sẽ render vào outlet đó. Dùng cho layout phức tạp (sidebar + main).
