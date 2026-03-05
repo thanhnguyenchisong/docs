@@ -165,6 +165,94 @@ Khi URL thay đổi, Router **thay thế** nội dung bên trong outlet bằng c
 
 **Named outlet** (nâng cao): Có thể có nhiều outlet với tên khác nhau, route khai báo `outlet: 'tên'` để render vào outlet đó. Dùng cho layout có sidebar + main content riêng.
 
+| Cách | Dùng khi | Giới hạn |
+|------|----------|-----------|
+| children + router-outlet | UI cha–con đi theo 1 pipeline | ❌ Không song song, ❌ không nhiều view, ❌ không sidebar |
+| named outlets | nhiều vùng UI hoạt động độc lập cùng lúc | ✔ Sidebar, ✔ quickview, ✔ panel song song |
+
+Định nghĩa routes cho named outlet
+```typescript
+// app.routes.ts
+import { Routes } from '@angular/router';
+
+export const routes: Routes = [
+  // Main content (primary)
+  {
+    path: 'products',
+    loadComponent: () =>
+      import('./features/products/product-list.component')
+        .then(m => m.ProductListComponent),
+  },
+  {
+    path: 'products/:id',
+    loadComponent: () =>
+      import('./features/products/product-detail.component')
+        .then(m => m.ProductDetailComponent),
+  },
+
+  // Sidebar content (named outlet)
+  {
+    path: 'filter',
+    outlet: 'sidebar', // <— chỉ định render vào outlet 'sidebar'
+    loadComponent: () =>
+      import('./shared/sidebar-filter.component')
+        .then(m => m.SidebarFilterComponent),
+  },
+  {
+    path: 'cart',
+    outlet: 'sidebar',
+    loadComponent: () =>
+      import('./shared/sidebar-cart.component')
+        .then(m => m.SidebarCartComponent),
+  },
+
+  // Mặc định
+  { path: '', redirectTo: '/products', pathMatch: 'full' },
+];
+```
+Các route có outlet: 'sidebar' sẽ không render nếu layout không có <router-outlet name="sidebar">.
+
+Để hiển thị dùng url trực tiếp: 
+```
+/products(sidebar:filter)
+/products(sidebar:cart)
+/products/123(sidebar:filter)
+```
+Dùng routerLink hoặc router.navigate
+```angular
+<!-- Mở filter ở sidebar, giữ nguyên main -->
+<a [routerLink]="[{ outlets: { sidebar: ['filter'] } }]">Open Filter</a>
+```
+Điều hướng đồng thời: đổi primary + mở sidebar:
+```
+<!-- Đi tới /products/123 và mở cart ở sidebar -->
+<a [routerLink]="[
+  '/products', 123, 
+  { outlets: { sidebar: ['cart'] } }
+]">Product + Cart</a>
+```
+Đóng (clear) named outlet như khi bạn muốn tắt pannel trong product UI nơi dùng outlet
+```
+<!-- Đóng outlet 'sidebar' (xóa view) -->
+<button (click)="closeSidebar()">Close</button>
+
+// component.ts
+import { Router } from '@angular/router';
+
+constructor(private router: Router) {}
+
+closeSidebar() {
+  this.router.navigate([{ outlets: { sidebar: null } }], { relativeTo: this.activatedRoute });
+  // hoặc tuyệt đối: this.router.navigate(['/', { outlets: { sidebar: null } }]);
+}
+Lưu ý Named outlet (ví dụ sidebar) đặt ở layout App – KHÔNG cần outlet trong Product. Chỉ rounter cha con nested children thì cần outlet trong cha.
+``
+<!-- trong ProductListComponent là có thể chạy đc khi ng dùng bấm vào. Sẽ hiển thị 1 sidebar bên cạnh thông tin chính-->
+<button [routerLink]="[{ outlets: { sidebar: ['filter'] } }]">Bộ lọc</button>
+<button [routerLink]="[{ outlets: { sidebar: ['cart'] } }]">Giỏ hàng</button>
+<button [routerLink]="[{ outlets: { sidebar: null } }]">Đóng sidebar</button>
+```
+
 ### routerLink — link điều hướng
 
 Directive `routerLink` gắn lên thẻ `<a>` (hoặc element có role link) để điều hướng qua Router — **không reload trang**, chỉ đổi URL và component trong outlet.
