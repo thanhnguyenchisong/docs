@@ -141,6 +141,61 @@ ngOnInit() {
 
 ---
 
+## RxJS: Observable, Observer và Subscriber
+
+## 🔎 Observable
+- **Observable** là **nguồn phát dữ liệu** (data producer).
+- Nó định nghĩa cách dữ liệu được tạo ra và phát đi theo thời gian.
+- Có thể phát ra nhiều giá trị (`next`), báo lỗi (`error`), hoặc kết thúc (`complete`).
+
+### Ví dụ:
+```ts
+const observable = new Observable(subscriber => {
+  subscriber.next(1);
+  subscriber.next(2);
+  subscriber.complete();
+});
+```
+### Observer
+- Observer là người nhận dữ liệu (data consumer).
+- Là object chứa các hàm callback để xử lý giá trị từ Observable:
+  - next(value): xử lý giá trị mới.
+  - error(err): xử lý lỗi.
+  - complete(): xử lý khi Observable kết thúc.
+#### Ví dụ:
+```
+const observer = {
+  next: x => console.log('Nhận giá trị:', x),
+  error: err => console.error('Lỗi:', err),
+  complete: () => console.log('Hoàn tất')
+};
+
+observable.subscribe(observer);
+```
+### Subcriber
+- Subscriber là đối tượng được tạo ra khi gọi observable.subscribe(observer).
+- Nó chính là “subscription” giữa Observable và Observer.
+- Chức năng:
+   - Gọi các hàm next, error, complete của Observer khi Observable phát dữ liệu.
+   - Có khả năng unsubscribe để ngắt kết nối, tránh rò rỉ bộ nhớ.
+ 
+#### Ví dụ:
+```
+const subscription = observable.subscribe(observer);
+
+// Sau một thời gian, hủy đăng ký
+subscription.unsubscribe();
+```
+
+### 💡 Tóm lại
+- Observable = nơi phát dữ liệu.
+- Observer = cách xử lý dữ liệu.
+- Subscriber = kết quả của việc subscribe, quản lý vòng đời kết nối.
+- Trong thực tế:
+   - Dùng pipe() để biến đổi dữ liệu.
+   - Dùng Observer để định nghĩa cách xử lý kết quả.
+   - Dùng Subscriber để quản lý kết nối và hủy khi không cần nữa.
+
 ## Kết hợp nhiều Observable
 
 Trong ứng dụng thực tế thường cần **kết hợp nhiều nguồn dữ liệu** (load song song, phụ thuộc chéo). Các operator sau rất quan trọng:
