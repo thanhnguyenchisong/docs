@@ -89,27 +89,24 @@ this.searchControl.valueChanges.pipe(
 
 ---
 
-## Subject và multicast
+## RxJS: Subject và Multicast
 
-- **Subject**: Vừa Observable vừa Observer; nhiều subscriber dùng chung, emit qua `.next(value)`.
-- **BehaviorSubject**: Có giá trị khởi tạo, subscriber mới nhận ngay giá trị hiện tại.
-- **ReplaySubject**: Replay n giá trị gần nhất cho subscriber mới.
+## 🎯 Subject
+- **Subject** là một loại đặc biệt của Observable, đồng thời cũng là **Observer**.
+  - Có thể **phát giá trị** (emit) bằng `subject.next(value)`.
+  - Có thể được **subscribe** như một Observable bình thường.
+- Nhiều subscriber cùng lúc sẽ nhận được **cùng một giá trị** mà Subject phát ra.
 
-```typescript
-private search$ = new BehaviorSubject<string>('');
+### Ví dụ:
+```ts
+const subject = new Subject<number>();
 
-setSearch(v: string) {
-  this.search$.next(v);
-}
+subject.subscribe(v => console.log('A:', v));
+subject.subscribe(v => console.log('B:', v));
 
-getSearch(): Observable<string> {
-  return this.search$.asObservable();
-}
-```
+subject.next(1);
+subject.next(2);
 
-Dùng BehaviorSubject khi cần "giá trị hiện tại" (ví dụ user đã login, theme).
-
----
 
 ## async pipe và unsubscribe
 
