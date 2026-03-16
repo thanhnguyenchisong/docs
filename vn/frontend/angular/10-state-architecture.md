@@ -65,6 +65,12 @@ Component đọc qua inject + signal hoặc async pipe nếu dùng Observable.
 - **Ưu**: Đơn giản, ít boilerplate, đủ cho nhiều app.
 - **Nhược**: Không có pattern chuẩn cho side effect (gọi API) và debug.
 
+
+For use service base state: Khác nhau giữa Subject, BehaviorSubject, Signal
+ - Subject → event (Ko dùng dữ liệu hiện tại nên hợp gửi event)
+ - BehaviorSubject → state (Dùng dữ liệu hiện tại và cần những xử lý phức tạp)
+ - Signal → UI state hiện đại, đồng bộ, dễ xài (khuyến nghị)
+
 ---
 
 ## NgRx overview
