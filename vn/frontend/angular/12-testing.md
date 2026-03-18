@@ -106,6 +106,22 @@ describe('ProductListComponent', () => {
 - **DebugElement**: Query DOM bằng `fixture.debugElement.query(By.css('button'))`.
 - **Mock service**: `useValue` hoặc `useClass` với stub.
 
+- Trigger change detection / update view
+
+fixture.detectChanges() để chạy change detection → DOM mới cập nhật theo state.
+
+- Truy cập DOM để assert UI
+
+fixture.nativeElement lấy DOM thật và expect(el.textContent).toContain(...).
+hoặc fixture.debugElement.query(By.css('...')) để query theo CSS/Directive.
+
+- Tương tác event như user
+Click/nhập liệu rồi detectChanges:
+
+button.click() / input.value = 'a'; input.dispatchEvent(new Event('input'))
+
+- (Bonus) Xử lý async rendering
+fixture.whenStable() hoặc kết hợp fakeAsync/tick để chờ async tasks xong.
 ---
 
 ## Test service
