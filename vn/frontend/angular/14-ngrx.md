@@ -47,17 +47,16 @@ Luồng điển hình: **Component dispatch action** → **Reducer cập nhật 
 ## Cài đặt và cấu hình
 
 ```bash
+# cài store (state container)
 ng add @ngrx/store
+# cài effects (side-effects)
 ng add @ngrx/effects
 ```
 
-Hoặc cài thủ công:
-
 ```bash
+# cài qua npm nếu không dùng ng add
 npm install @ngrx/store @ngrx/effects
 ```
-
-Đăng ký Store và Effects trong `app.config.ts` (standalone):
 
 ```typescript
 import { provideStore } from '@ngrx/store';
@@ -67,8 +66,8 @@ import { AppEffects } from './store/effects/app.effects';
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideStore(reducers),
-    provideEffects(AppEffects),
+    provideStore(reducers), // đăng ký root store với reducers
+    provideEffects(AppEffects), // đăng ký effects toàn app
   ],
 });
 ```
@@ -84,23 +83,23 @@ Dùng **createAction** với payload (optional). Convention: `[Feature] Action T
 import { createAction, props } from '@ngrx/store';
 import { Product } from '../models/product';
 
-export const loadProducts = createAction('[Products] Load');
+export const loadProducts = createAction('[Products] Load'); // action không payload
 export const loadProductsSuccess = createAction(
   '[Products] Load Success',
-  props<{ products: Product[] }>(),
+  props<{ products: Product[] }>(), // payload danh sách sản phẩm
 );
 export const loadProductsFailure = createAction(
   '[Products] Load Failure',
-  props<{ error: string }>(),
+  props<{ error: string }>(), // payload lỗi
 );
 
 export const addToCart = createAction(
   '[Cart] Add Item',
-  props<{ product: Product; quantity?: number }>(),
+  props<{ product: Product; quantity?: number }>(), // payload sản phẩm và số lượng
 );
 export const removeFromCart = createAction(
   '[Cart] Remove Item',
-  props<{ productId: number }>(),
+  props<{ productId: number }>(), // payload id sản phẩm
 );
 ```
 
@@ -120,46 +119,42 @@ import * as ProductActions from './product.actions';
 import { ProductState, initialProductState } from './product.state';
 
 export const productReducer = createReducer(
-  initialProductState,
+  initialProductState, // state khởi tạo
   on(ProductActions.loadProducts, state => ({
-    ...state,
-    loading: true,
-    error: null,
+    ...state,          // giữ immutable
+    loading: true,     // bật loading khi load
+    error: null,       // reset lỗi
   })),
   on(ProductActions.loadProductsSuccess, (state, { products }) => ({
     ...state,
-    products,
-    loading: false,
+    products,          // ghi dữ liệu mới
+    loading: false,    // tắt loading
     error: null,
   })),
   on(ProductActions.loadProductsFailure, (state, { error }) => ({
     ...state,
-    loading: false,
-    error,
+    loading: false,    // tắt loading khi lỗi
+    error,             // lưu lỗi
   })),
 );
 ```
-
-**State interface và initial:**
 
 ```typescript
 // product.state.ts
 import { Product } from '../models/product';
 
 export interface ProductState {
-  products: Product[];
-  loading: boolean;
-  error: string | null;
+  products: Product[];     // danh sách sản phẩm
+  loading: boolean;        // trạng thái tải
+  error: string | null;    // lỗi nếu có
 }
 
 export const initialProductState: ProductState = {
-  products: [],
-  loading: false,
-  error: null,
+  products: [],            // mặc định rỗng
+  loading: false,          // chưa tải
+  error: null,             // chưa có lỗi
 };
 ```
-
-**Gộp reducers (global state):**
 
 ```typescript
 // store/reducers/index.ts
@@ -168,12 +163,12 @@ import { productReducer } from '../features/products/store/product.reducer';
 import { cartReducer } from '../features/cart/store/cart.reducer';
 
 export interface AppState {
-  products: ProductState;
-  cart: CartState;
+  products: ProductState;  // slice products
+  cart: CartState;         // slice cart
 }
 
 export const reducers: ActionReducerMap<AppState> = {
-  products: productReducer,
+  products: productReducer, // map key -> reducer
   cart: cartReducer,
 };
 ```
@@ -189,27 +184,27 @@ Selector đọc state (hoặc derived data). **createFeatureSelector** lấy sli
 import { createFeatureSelector, createSelector } from '@ngrx/store';
 import { ProductState } from './product.state';
 
-export const selectProductState = createFeatureSelector<ProductState>('products');
+export const selectProductState = createFeatureSelector<ProductState>('products'); // lấy slice products
 
 export const selectAllProducts = createSelector(
   selectProductState,
-  state => state.products,
+  state => state.products, // trả về list sản phẩm
 );
 
 export const selectProductsLoading = createSelector(
   selectProductState,
-  state => state.loading,
+  state => state.loading, // trả về loading
 );
 
 export const selectProductError = createSelector(
   selectProductState,
-  state => state.error,
+  state => state.error, // trả về lỗi
 );
 
 // Derived: sản phẩm có số lượng > 0
 export const selectInStockProducts = createSelector(
   selectAllProducts,
-  products => products.filter(p => p.stock > 0),
+  products => products.filter(p => p.stock > 0), // filter derived data
 );
 ```
 
@@ -232,16 +227,16 @@ import * as ProductActions from './product.actions';
 
 @Injectable()
 export class ProductEffects {
-  private actions$ = inject(Actions);
-  private productService = inject(ProductService);
+  private actions$ = inject(Actions); // stream action
+  private productService = inject(ProductService); // service gọi API
 
   loadProducts$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(ProductActions.loadProducts),
+      ofType(ProductActions.loadProducts), // chỉ lắng nghe loadProducts
       exhaustMap(() =>
-        this.productService.getAll().pipe(
-          map(products => ProductActions.loadProductsSuccess({ products })),
-          catchError(err => of(ProductActions.loadProductsFailure({ error: err.message }))),
+        this.productService.getAll().pipe( // gọi API lấy sản phẩm
+          map(products => ProductActions.loadProductsSuccess({ products })), // dispatch success
+          catchError(err => of(ProductActions.loadProductsFailure({ error: err.message }))), // dispatch failure
         ),
       ),
     ),
@@ -259,7 +254,7 @@ export class ProductEffects {
 // app.config.ts
 import { ProductEffects } from './features/products/store/product.effects';
 
-provideEffects([ProductEffects]),
+provideEffects([ProductEffects]), // đăng ký effects
 ```
 
 Feature state (lazy): đăng ký effects trong route hoặc feature provider.
@@ -279,9 +274,9 @@ import { productReducer } from './features/products/store/product.reducer';
 import { ProductEffects } from './features/products/store/product.effects';
 
 providers: [
-  provideStore(),  // root store có thể rỗng
-  provideState('products', productReducer),
-  provideEffects([ProductEffects]),
+  provideStore(),  // root store (rỗng)
+  provideState('products', productReducer), // đăng ký feature state products
+  provideEffects([ProductEffects]), // đăng ký effects cho feature
 ],
 ```
 
@@ -298,8 +293,8 @@ export const routes: Routes = [
     path: '',
     loadComponent: () => import('./product-list.component').then(m => m.ProductListComponent),
     providers: [
-      provideState('products', productReducer),
-      provideEffects([ProductEffects]),
+      provideState('products', productReducer), // register feature state trong route
+      provideEffects([ProductEffects]), // register effects cho route
     ],
   },
 ];
@@ -321,22 +316,20 @@ import { selectAllProducts, selectProductsLoading } from './store/product.select
 
 @Component({ ... })
 export class ProductListComponent {
-  private store = inject(Store);
+  private store = inject(Store); // inject store
 
-  products = this.store.selectSignal(selectAllProducts);
-  loading = this.store.selectSignal(selectProductsLoading);
+  products = this.store.selectSignal(selectAllProducts); // signal từ selector
+  loading = this.store.selectSignal(selectProductsLoading); // signal loading
 
   ngOnInit() {
-    this.store.dispatch(loadProducts());
+    this.store.dispatch(loadProducts()); // dispatch action load
   }
 
   addToCart(product: Product) {
-    this.store.dispatch(addToCart({ product }));
+    this.store.dispatch(addToCart({ product })); // dispatch action add
   }
 }
 ```
-
-Template:
 
 ```html
 @if (loading()) {
@@ -365,8 +358,8 @@ Với Observable (cách cũ): `this.store.select(selectAllProducts).subscribe(..
 // product.reducer.spec.ts
 describe('productReducer', () => {
   it('should set loading on loadProducts', () => {
-    const state = productReducer(initialProductState, loadProducts());
-    expect(state.loading).toBe(true);
+    const state = productReducer(initialProductState, loadProducts()); // reducer với action
+    expect(state.loading).toBe(true); // assert loading
   });
 });
 ```
@@ -395,3 +388,57 @@ Akita ít boilerplate hơn. **NgRx Signal Store** (Angular 16+) là API mới c�
 → Chi tiết state tổng quan: [10 - State & Kiến trúc](10-state-architecture.md)  
 → **Checklist phỏng vấn Senior** (gồm NgRx): [15 - Master Angular](15-master-angular.md#checklist-phỏng-vấn-senior-angular)  
 → Tiếp theo UI: [11 - UI & Styling](11-ui-styling.md)
+
+## Luồng giao tiếp (NgRx end-to-end)
+
+```text
+[Component/UI]
+     |
+     | dispatch action
+     v
+   [Store] <--- selectors ---\
+     |                        |
+     | state update           |
+     v                        |
+[Component/UI]                |
+                              |
+               actions stream |
+                              v
+                           [Effects]
+                              |
+                              | call API
+                              v
+                           [Backend]
+                              |
+                              | data/error
+                              v
+                           [Effects]
+                              |
+                              | dispatch success/failure
+                              v
+                            [Store]
+```
+
+```mermaid
+flowchart LR
+  UI[Component/UI] -- dispatch action --> STORE[(Store)]
+  STORE -- state update --> UI
+  STORE -- emits actions --> EFX[Effects]
+  EFX -- call API --> API[(Backend)]
+  API -- data/error --> EFX
+  EFX -- dispatch success/failure --> STORE
+  STORE -- selectors --> UI
+```
+
+## Cách sử dụng chi tiết (từ đầu đến cuối)
+
+1. **Define state**: tạo `ProductState` + `initialState` cho feature.
+2. **Define actions**: mô tả các sự kiện (load, success, failure, add/remove).
+3. **Reducer**: map action → state mới, giữ immutable.
+4. **Selector**: trích state/derived data cho UI.
+5. **Effect**: lắng action, gọi API, dispatch success/failure.
+6. **Register**: `provideStore` + `provideState` + `provideEffects`.
+7. **Component**: dispatch action, đọc selector (signal/observable).
+8. **DevTools**: quan sát action/state để debug.
+
+---

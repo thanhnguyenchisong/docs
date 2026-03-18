@@ -20,7 +20,7 @@
 - **Fast Startup Time**: Milliseconds
 - **Low Memory Footprint**: Minimal RAM usage
 - **Developer Joy**: Great developer experience
-- **Container First**: Optimized for containers
+- **Container First**: Optimized for containerso
 
 ### Key Features
 
