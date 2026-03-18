@@ -118,6 +118,18 @@ it('should add item to cart', () => {
 
 ---
 
+### No ComponentFixture  vs ComponentFixture
+“Không khác gì nhau” chỉ đúng nếu bạn chỉ test class logic và không quan tâm UI/lifecycle/async/OnPush.
+
+Trong hầu hết test component thực tế, ComponentFixture là bắt buộc để:
+
+- chạy đúng lifecycle,
+- có change detection,
+- tương tác DOM & event,
+- xử lý async rendering,
+- kiểm chứng OnPush và binding.
+
+
 ## E2E (Cypress / Playwright)
 
 E2E test chạy trên browser thật (hoặc headless), tương tác như user.
