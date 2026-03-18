@@ -124,6 +124,8 @@ button.click() / input.value = 'a'; input.dispatchEvent(new Event('input'))
 fixture.whenStable() hoặc kết hợp fakeAsync/tick để chờ async tasks xong.
 ---
 
+Khi test component, fixture.detectChanges() chạy change detection và các lifecycle hooks, giúp DOM sync với state bên trong. Nếu không gọi, template chưa cập nhật, dẫn tới không test được UI hoặc fail khi test binding.
+
 ## Test service
 
 Inject service trong TestBed, gọi method và assert. Nếu service gọi HTTP thì dùng **HttpTestingController** như ví dụ trên. Nếu service dùng service khác thì mock service đó trong `providers`.
