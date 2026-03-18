@@ -63,6 +63,15 @@ describe('ProductService', () => {
   });
 });
 ```
+//Các bước test với HTTP:
+
+Arrange: Inject service và HttpTestingController qua TestBed.
+Act: Gọi method trong service thực hiện HTTP.
+Assert:
+Dùng httpMock.expectOne(url) để xác thực đúng request.
+Gửi response mock: req.flush(mockData) để hoàn tất flow.
+Kiểm tra kết quả từ HTTP trả về (giá trị).
+Cuối cùng, gọi httpMock.verify() để check không có request nào bị quên xử lý.
 
 - **TestBed**: Cấu hình module test, inject service.
 - **HttpTestingController**: Giả lập HTTP, expect request và flush response.
