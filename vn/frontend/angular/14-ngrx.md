@@ -34,11 +34,11 @@ Sau khi cài NgRx và tạo một slice đơn giản (ví dụ counter: action `
 
 ## NgRx là gì? (chi tiết)
 
-- **Store**: Một nguồn sự thật (single source of truth) — state toàn app (hoặc từng feature) nằm trong object read-only.
+- **Store**: Nơi lưu toàn bộ state của app.
 - **Action**: Sự kiện mô tả “điều gì xảy ra” (ví dụ `[Products] Load`, `[Cart] Add Item`). Component hoặc Effect **dispatch** action.
-- **Reducer**: Hàm **pure** `(state, action) => state mới`. Không gọi API, không mutate state; trả về state mới (immutable).
+- **Reducer**: Hàm  thuần nhận state và action -> trả về state mới (không sửa trực tiếp trên state cũ) **pure** `(state, action) => state mới`. Không gọi API, không mutate state; trả về state mới (immutable).
 - **Effect**: Xử lý **side effect** (HTTP, router, localStorage). Lắng nghe action, gọi API/async, sau đó dispatch action thành công/thất bại.
-- **Selector**: Hàm đọc state (hoặc derived data) từ store. Có thể memoize (createSelector) để tránh tính lại không cần thiết.
+- **Selector**: Cách lấy dữ liệu từ store để hiện thị lên UI. Hàm đọc state (hoặc derived data) từ store. Có thể memoize (createSelector) để tránh tính lại không cần thiết.
 
 Luồng điển hình: **Component dispatch action** → **Reducer cập nhật state** → **Selector cung cấp data cho component**. Nếu cần gọi API: **Effect** lắng action → gọi API → dispatch action load success/error → **Reducer** cập nhật state.
 
