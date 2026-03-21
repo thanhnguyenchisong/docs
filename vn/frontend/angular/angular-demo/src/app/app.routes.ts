@@ -120,6 +120,14 @@ export const routes: Routes = [
     data: { animation: 'dashboard' },
   },
 
+  // ─── NgRx Demo — Counter ──────────────────────────────────────
+  {
+    path: 'ngrx',
+    loadComponent: () => import('@features/ngrx-demo/counter-demo/counter-demo.component')
+      .then(m => m.CounterDemoComponent),
+    data: { animation: 'ngrx' },
+  },
+
   // ─── Wildcard — 404 Not Found ──────────────────────────────────
   // 📖 Bài 06: ** match mọi URL không khớp route nào ở trên
   // PHẢI đặt cuối cùng vì Angular match theo thứ tự

@@ -34,6 +34,8 @@ import { environment } from '@env/environment';
 // NgRx
 import { productReducer } from '@features/products/store/product.reducer';
 import { ProductEffects } from '@features/products/store/product.effects';
+import { counterReducer } from '@features/ngrx-demo/store/counter.reducer';
+import { CounterEffects } from '@features/ngrx-demo/store/counter.effects';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -66,8 +68,9 @@ export const appConfig: ApplicationConfig = {
     // 📖 Bài 14: provideEffects — đăng ký effects classes
     provideStore({
       products: productReducer,
+      counter: counterReducer,
     }),
-    provideEffects([ProductEffects]),
+    provideEffects([ProductEffects, CounterEffects]),
 
     // ─── Global Error Handler ──────────────────────────────────
     // 📖 Bài 08 Senior: Override ErrorHandler mặc định

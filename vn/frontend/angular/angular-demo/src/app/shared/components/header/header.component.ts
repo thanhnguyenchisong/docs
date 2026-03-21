@@ -57,6 +57,9 @@ import { CartService } from '@core/services/cart.service';
         <a mat-button routerLink="/products" routerLinkActive="active-link">
           <mat-icon>inventory</mat-icon> Sản phẩm
         </a>
+        <a mat-button routerLink="/ngrx" routerLinkActive="active-link">
+          <mat-icon>sync_alt</mat-icon> NgRx
+        </a>
         <a mat-button routerLink="/dashboard" routerLinkActive="active-link">
           <mat-icon>dashboard</mat-icon> Dashboard
         </a>

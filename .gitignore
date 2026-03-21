@@ -1,2 +1,5 @@
 .idea
 node_modules/
+.angular/
+dist/
+vn/frontend/angular/angular-demo/.angular/
