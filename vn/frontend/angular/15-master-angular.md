@@ -85,6 +85,9 @@ effect(() => {
 ### Input/Output dạng signal (Angular 17+)
 
 Đã nêu trong bài 03: `input()`, `output()`, `model()`. Template đọc bằng `prop()`.
+- input(): Cha -> con
+- output(): con -> cha
+- model(): 2 way binding (vừa là input vừa là output)
 
 ### So với Observable
 
