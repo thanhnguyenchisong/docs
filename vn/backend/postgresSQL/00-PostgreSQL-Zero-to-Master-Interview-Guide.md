@@ -38,6 +38,21 @@ Tài liệu này được thiết kế để một người bắt đầu từ co
 - **Isolation**: transaction không "dẫm chân" nhau theo mức cô lập.
 - **Durability**: commit xong phải bền vững (WAL/fsync).
 
+Cách database biết dữ liệu đã commit hay chưa
+ - Mỗi transaction khi thực hiện thay đổi sẽ ghi log và giữ dữ liệu tạm thời trong buffer/memory.
+ - Database engine có cơ chế transaction ID (XID) và visibility rules:
+ - Mỗi row trong PostgreSQL, chẳng hạn, có thông tin về transaction nào đã tạo/đã xóa nó.
+ - Khi một transaction khác đọc dữ liệu, engine sẽ kiểm tra xem transaction đó đã commit hay chưa. Nếu chưa commit, dữ liệu bị coi là “uncommitted” và sẽ không được hiển thị ở mức cô lập cao hơn.
+ - Khi transaction commit, hệ thống ghi thông tin vào Write-Ahead Log (WAL) và đánh dấu transaction là “committed”. Từ đó, các transaction khác có thể thấy dữ liệu này tùy theo isolation level.
+
+Tóm tắt các mức độ cô lập for  **Isolation**
+ - Read Uncommitted: có thể thấy dữ liệu chưa commit (dirty read).
+ - Read Committed: chỉ thấy dữ liệu đã commit tại thời điểm đọc.
+ - Repeatable Read: đảm bảo cùng một truy vấn trong transaction sẽ luôn thấy cùng kết quả, tránh non-repeatable read.
+ - Serializable: mô phỏng như các transaction chạy tuần tự, loại bỏ cả phantom read.
+
+👉 Nói cách khác, database engine quản lý “ai được thấy cái gì” bằng cách kiểm tra trạng thái commit của transaction và áp dụng quy tắc tương ứng với isolation level.
+
 ### 2.3 MVCC (trái tim PostgreSQL)
 - Mỗi `UPDATE/DELETE` tạo version tuple mới/cũ, không ghi đè trực tiếp.
 - Reader thấy snapshot phù hợp transaction của mình.
