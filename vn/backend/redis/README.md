@@ -47,6 +47,11 @@ Chào mừng đến với bộ tài liệu luyện phỏng vấn Redis! Bộ tà
    - Monitoring, cảnh báo, runbook sự cố
    - Backup/restore drill, checklist go-live
 
+9. **[Integration Examples (Spring Boot + Quarkus)](./09-Integration-Examples-Spring-Quarkus.md)**
+   - Ví dụ cấu hình Redis cho Spring Boot
+   - Ví dụ cấu hình Redis cho Quarkus
+   - API mẫu set/get và cache annotation
+
 ## 🎯 Cách sử dụng
 
 1. **Bắt đầu với Fundamentals**: Nắm vững in-memory store và use cases
@@ -106,6 +111,7 @@ Mỗi file tài liệu bao gồm:
 6. Clustering và Sentinel
 7. Advanced Topics
 8. Operational Checklist và Troubleshooting
+9. Integration Examples (Spring Boot + Quarkus)
 
 ## ✅ Checklist trước Phỏng vấn
 
@@ -119,6 +125,7 @@ Mỗi file tài liệu bao gồm:
 - [ ] Cache stampede và cách giảm thiểu
 - [ ] Eviction policy, maxmemory, hot key/big key
 - [ ] Monitoring + alert + backup/restore drill
+- [ ] Tích hợp Redis trong Spring Boot và Quarkus
 
 ---
 
