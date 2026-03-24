@@ -46,10 +46,11 @@
 
 ### Version History
 
-- **PostgreSQL 15**: Latest stable (2022)
-- **PostgreSQL 14**: LTS
-- **PostgreSQL 13**: Previous LTS
-- **PostgreSQL 12**: Previous version
+- PostgreSQL có release major định kỳ, mỗi major có vòng đời hỗ trợ riêng.
+- Trong phỏng vấn, nên trả lời theo nguyên tắc:
+  - Hệ thống production cần theo major còn hỗ trợ chính thức.
+  - Luôn lên kế hoạch nâng cấp major/minor định kỳ.
+  - Không hard-code "latest version" trong tài liệu vì sẽ nhanh lỗi thời.
 
 ---
 

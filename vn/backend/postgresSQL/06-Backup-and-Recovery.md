@@ -215,7 +215,7 @@ gzip $ARCHIVE_DIR/$DEST
 
 **Định nghĩa:**
 - Physical replication
-- Master-slave setup
+- Primary-standby setup
 - Real-time replication
 
 **Setup:**
@@ -234,12 +234,11 @@ host replication replicator 192.168.1.0/24 md5
 
 **Replica (Standby):**
 ```bash
-# Create base backup
-pg_basebackup -h master -U replicator -D /var/lib/postgresql/data -P -W
+# Create base backup from primary
+pg_basebackup -h primary -U replicator -D /var/lib/postgresql/data -P -W -R
 
-# Configure recovery
-echo "standby_mode = 'on'" >> recovery.conf
-echo "primary_conninfo = 'host=master port=5432 user=replicator'" >> recovery.conf
+# -R sẽ tự tạo cấu hình standby cho PostgreSQL 12+
+# File `standby.signal` và `primary_conninfo` sẽ được thiết lập tự động
 ```
 
 #### 2. Logical Replication
@@ -305,6 +304,40 @@ pg_restore -d testdb backup.dump
 psql -d testdb -c "SELECT COUNT(*) FROM users;"
 ```
 
+### Recovery Runbook (Production)
+
+```text
+1) Xác nhận phạm vi sự cố: mất dữ liệu logic hay hỏng node.
+2) Đóng băng ghi từ ứng dụng (maintenance mode / disable write path).
+3) Chọn recovery target:
+   - Latest possible (khôi phục tối đa dữ liệu), hoặc
+   - Thời điểm trước lỗi nghiệp vụ (PITR theo timestamp/LSN).
+4) Restore trên môi trường staging trước để kiểm chứng.
+5) Verify dữ liệu bằng checklist nghiệp vụ quan trọng.
+6) Chuyển traffic có kiểm soát (DNS/proxy/failover tool).
+7) Theo dõi sát replication lag, error rate, data drift sau cutover.
+```
+
+### Checklist Verify Sau Restore
+
+```sql
+-- 1) Kiểm tra object count cơ bản
+SELECT count(*) AS tables_in_public
+FROM information_schema.tables
+WHERE table_schema = 'public';
+
+-- 2) Kiểm tra số lượng bản ghi ở bảng critical
+SELECT 'users' AS table_name, count(*) FROM users
+UNION ALL
+SELECT 'orders' AS table_name, count(*) FROM orders;
+
+-- 3) Kiểm tra sequence có bị lệch không
+SELECT
+    'users_id_seq' AS seq_name,
+    last_value
+FROM users_id_seq;
+```
+
 ---
 
 ## Câu hỏi thường gặp
@@ -341,7 +374,7 @@ psql -d testdb -c "SELECT COUNT(*) FROM users;"
 
 **Streaming Replication:**
 - Physical replication
-- Master-slave
+- Primary-standby
 - Real-time
 
 **Logical Replication:**

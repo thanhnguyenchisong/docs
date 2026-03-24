@@ -168,4 +168,4 @@ redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
 
 ---
 
-**Kết thúc bộ Redis.** Quay lại [README](./README.md) hoặc [MASTER-BACKEND-CHECKLIST](../MASTER-BACKEND-CHECKLIST.md).
+**Tiếp theo:** [08-Operational-Checklist-Troubleshooting.md](./08-Operational-Checklist-Troubleshooting.md) — Checklist production, monitoring, runbook sự cố.

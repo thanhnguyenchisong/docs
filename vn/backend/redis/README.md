@@ -42,6 +42,11 @@ Chào mừng đến với bộ tài liệu luyện phỏng vấn Redis! Bộ tà
    - Transactions, Pipeline
    - Performance tuning, best practices
 
+8. **[Operational Checklist và Troubleshooting](./08-Operational-Checklist-Troubleshooting.md)**
+   - Cấu hình production an toàn
+   - Monitoring, cảnh báo, runbook sự cố
+   - Backup/restore drill, checklist go-live
+
 ## 🎯 Cách sử dụng
 
 1. **Bắt đầu với Fundamentals**: Nắm vững in-memory store và use cases
@@ -100,6 +105,7 @@ Mỗi file tài liệu bao gồm:
 5. Spring Data Redis
 6. Clustering và Sentinel
 7. Advanced Topics
+8. Operational Checklist và Troubleshooting
 
 ## ✅ Checklist trước Phỏng vấn
 
@@ -111,6 +117,8 @@ Mỗi file tài liệu bao gồm:
 - [ ] Redis Cluster (hash slot)
 - [ ] Sentinel: auto failover
 - [ ] Cache stampede và cách giảm thiểu
+- [ ] Eviction policy, maxmemory, hot key/big key
+- [ ] Monitoring + alert + backup/restore drill
 
 ---
 

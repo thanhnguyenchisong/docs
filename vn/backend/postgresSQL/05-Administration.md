@@ -132,12 +132,12 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 -- Create policy
 CREATE POLICY user_orders_policy ON orders
 FOR SELECT
-USING (user_id = current_user_id());
+USING (user_id = current_setting('app.current_user_id')::int);
 
 -- Create policy for INSERT
 CREATE POLICY user_orders_insert_policy ON orders
 FOR INSERT
-WITH CHECK (user_id = current_user_id());
+WITH CHECK (user_id = current_setting('app.current_user_id')::int);
 ```
 
 ---
@@ -298,8 +298,11 @@ maintenance_work_mem = 64MB
 # Max connections
 max_connections = 100
 
-# Connection timeout
-connection_timeout = 60
+# Timeout per statement (ms)
+statement_timeout = 60000
+
+# Idle transaction timeout (ms)
+idle_in_transaction_session_timeout = 60000
 ```
 
 ### Autovacuum Settings

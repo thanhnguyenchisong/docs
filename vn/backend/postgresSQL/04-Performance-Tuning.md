@@ -109,7 +109,7 @@ SELECT * FROM users WHERE email = UPPER('john@example.com');
 
 ```sql
 -- ❌ Bad: Function prevents index usage
-SELECT * FROM users WHERE YEAR(created_at) = 2023;
+SELECT * FROM users WHERE date_part('year', created_at) = 2023;
 
 -- ✅ Good: Range query uses index
 SELECT * FROM users 
@@ -211,8 +211,8 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'john@example.com';
 - Full table scans on large tables
 - Missing index usage
 - High row estimates
-- Temporary tables
-- Filesort operations
+- High disk spill (`Sort Method: external merge Disk`, `Hash` batches tăng cao)
+- Excessive heap fetches dù kỳ vọng index-only scan
 
 ---
 
@@ -321,8 +321,11 @@ maintenance_work_mem = 64MB     # Memory for maintenance
 # Max connections
 max_connections = 100
 
-# Connection timeout
-connection_timeout = 60
+# Timeout per statement (ms)
+statement_timeout = 60000
+
+# Idle transaction timeout (ms)
+idle_in_transaction_session_timeout = 60000
 ```
 
 ### WAL Settings
@@ -403,6 +406,14 @@ min_wal_size = 80MB
 **Tools:**
 - pgBouncer
 - Pgpool-II
+
+### Q6: Làm sao kiểm tra query bị spill ra disk?
+
+**Cách làm nhanh:**
+1. Chạy `EXPLAIN (ANALYZE, BUFFERS)` với query thật.
+2. Tìm dấu hiệu `Sort Method: external merge Disk` hoặc hash batch tăng cao.
+3. Tăng `work_mem` có kiểm soát (theo session trước), rồi benchmark lại.
+4. Nếu vẫn spill: tối ưu plan/index thay vì chỉ tăng memory.
 
 ---
 

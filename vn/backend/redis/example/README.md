@@ -17,8 +17,14 @@ mvn spring-boot:run
 ## 3. Test
 
 ```bash
-curl "http://localhost:8085/api/set?key=hello&value=world"
+curl -X POST "http://localhost:8085/api/set?key=hello&value=world"
 curl "http://localhost:8085/api/get?key=hello"
+```
+
+Nếu muốn truyền ký tự đặc biệt (khoảng trắng, UTF-8), nên URL encode:
+
+```bash
+curl -X POST --get "http://localhost:8085/api/set" --data-urlencode "key=greeting" --data-urlencode "value=xin chao"
 ```
 
 Đọc kèm [../README.md](../README.md) và các file trong backend/redis.

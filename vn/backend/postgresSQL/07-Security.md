@@ -130,23 +130,23 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 -- Create policy
 CREATE POLICY user_orders_policy ON orders
 FOR SELECT
-USING (user_id = current_user_id());
+USING (user_id = current_setting('app.current_user_id')::int);
 
 -- Policy for INSERT
 CREATE POLICY user_orders_insert_policy ON orders
 FOR INSERT
-WITH CHECK (user_id = current_user_id());
+WITH CHECK (user_id = current_setting('app.current_user_id')::int);
 
 -- Policy for UPDATE
 CREATE POLICY user_orders_update_policy ON orders
 FOR UPDATE
-USING (user_id = current_user_id())
-WITH CHECK (user_id = current_user_id());
+USING (user_id = current_setting('app.current_user_id')::int)
+WITH CHECK (user_id = current_setting('app.current_user_id')::int);
 
 -- Policy for DELETE
 CREATE POLICY user_orders_delete_policy ON orders
 FOR DELETE
-USING (user_id = current_user_id());
+USING (user_id = current_setting('app.current_user_id')::int);
 ```
 
 ### Bypass RLS
@@ -154,6 +154,19 @@ USING (user_id = current_user_id());
 ```sql
 -- Bypass RLS (superuser or table owner)
 SET row_security = off;
+```
+
+### Set application context for RLS
+
+```sql
+-- Set current user id at session/transaction scope from application
+SET app.current_user_id = '42';
+
+-- Safer in transaction scope
+BEGIN;
+SET LOCAL app.current_user_id = '42';
+SELECT * FROM orders;
+COMMIT;
 ```
 
 ---
@@ -246,8 +259,8 @@ shared_preload_libraries = ''
 # Limit connections
 max_connections = 100
 
-# Connection timeout
-connection_timeout = 60
+# Timeout per statement (ms)
+statement_timeout = 60000
 
 # SSL
 ssl = on
@@ -293,14 +306,14 @@ ssl = on
 
 ---
 
-## Best Practices
+## Hardening Checklist
 
-1. **Strong Authentication**: Use scram-sha-256
-2. **Least Privilege**: Grant minimum required
-3. **Use SSL/TLS**: Encrypt connections
-4. **Row-Level Security**: For multi-tenant
-5. **Regular Updates**: Keep PostgreSQL updated
-6. **Audit Logging**: Monitor security events
+1. **Strong Authentication**: Use `scram-sha-256`, disable `trust` ngoài môi trường dev.
+2. **Least Privilege**: Tách role migration và role runtime, không dùng superuser cho app.
+3. **Network Controls**: Hạn chế CIDR trong `pg_hba.conf`, không mở `0.0.0.0/0` nếu không cần.
+4. **Use SSL/TLS**: Bật `ssl = on`, ưu tiên `verify-full` ở client.
+5. **Audit Logging**: Bật log truy cập quan trọng và định kỳ review.
+6. **Patch Management**: Luôn cập nhật minor version bảo mật.
 
 ---
 
