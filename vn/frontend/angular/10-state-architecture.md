@@ -71,6 +71,10 @@ For use service base state: Khác nhau giữa Subject, BehaviorSubject, Signal
  - BehaviorSubject → state (Dùng dữ liệu hiện tại và cần những xử lý phức tạp)
  - Signal → UI state hiện đại, đồng bộ, dễ xài (khuyến nghị)
 
+Cách giao tiếp: 
+ - Component A (danh sách sản phẩm): gọi cartService.add(product) khi click “Thêm vào giỏ”.
+ - Component B (header hiển thị giỏ hàng): đọc cartService.items() để hiển thị số lượng và danh sách.
+ - Khi A thêm sản phẩm, B tự động cập nhật vì cả hai cùng đọc chung state trong service.
 ---
 
 ## NgRx overview

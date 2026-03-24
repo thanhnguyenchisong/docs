@@ -85,6 +85,9 @@ effect(() => {
 ### Input/Output dạng signal (Angular 17+)
 
 Đã nêu trong bài 03: `input()`, `output()`, `model()`. Template đọc bằng `prop()`.
+- input(): Cha -> con
+- output(): con -> cha
+- model(): 2 way binding (vừa là input vừa là output)
 
 ### So với Observable
 
@@ -112,6 +115,10 @@ effect(() => {
 - **CSRF**: Nếu dùng cookie/session, backend gửi CSRF token; Angular gửi lại trong header (có thể qua interceptor).
 - **HTTP**: HTTPS; không lưu token nhạy cảm trong localStorage nếu có nguy cơ XSS; token trong memory hoặc httpOnly cookie (tùy kiến trúc).
 - **CSP**: Content-Security-Policy header hạn chế script/style nguồn; tránh eval, inline script không kiểm soát.
+- SPA hiện đại thường chọn:
+  - Access token: lưu trong memory.
+  - Refresh token: lưu trong HttpOnly cookie.
+  - Khi reload, app dùng refresh token để xin lại access token.
 
 ---
 
