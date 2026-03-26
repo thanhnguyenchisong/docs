@@ -130,10 +130,125 @@ Nên refactor: đưa phần dùng chung ra service thứ ba, hoặc dùng `forwa
 
 ## Senior / Master
 
-- **InjectionToken**: Khi inject interface hoặc giá trị không phải class (config, API URL), dùng `InjectionToken<T>` và provide trong app.config/component.
-- **Optional inject**: `inject(Service, { optional: true })` — trả về `null` nếu không có provider; dùng khi dependency có thể không tồn tại (ví dụ trong lib dùng ở nhiều context).
-- **Multi provider**: `providers: [{ provide: INTERCEPTOR, useClass: MyInterceptor, multi: true }]` — nhiều implementation cho cùng token (interceptors, HTTP).
-- **Environment injector vs Element injector**: Component có injector kế thừa từ parent; hierarchy quyết định “ai” nhận instance khi có nhiều provider cùng token. Chi tiết: [15 - Master Angular](15-master-angular.md#kiến-trúc-ứng-dụng-lớn).
+### InjectionToken — inject giá trị không phải class
+
+Khi cần inject **giá trị** (config object, string, number) hoặc **interface** (TypeScript interface không tồn tại ở runtime), dùng `InjectionToken<T>`:
+
+```typescript
+import { InjectionToken } from '@angular/core';
+
+export interface AppConfig {
+  apiUrl: string;
+  debug: boolean;
+  maxRetries: number;
+}
+
+export const APP_CONFIG = new InjectionToken<AppConfig>('app.config');
+```
+
+Provide trong `app.config.ts`:
+
+```typescript
+providers: [
+  {
+    provide: APP_CONFIG,
+    useValue: { apiUrl: 'https://api.example.com', debug: false, maxRetries: 3 },
+  },
+],
+```
+
+Inject trong service/component:
+
+```typescript
+private config = inject(APP_CONFIG);
+// this.config.apiUrl → 'https://api.example.com'
+```
+
+### useFactory — tạo instance bằng logic
+
+Khi cần tính toán hoặc chọn implementation dựa trên điều kiện:
+
+```typescript
+providers: [
+  {
+    provide: APP_CONFIG,
+    useFactory: () => {
+      const isProd = !isDevMode();
+      return {
+        apiUrl: isProd ? 'https://api.example.com' : 'http://localhost:3000',
+        debug: !isProd,
+        maxRetries: isProd ? 3 : 0,
+      };
+    },
+  },
+],
+```
+
+Factory có thể inject dependency khác:
+
+```typescript
+{
+  provide: LoggerService,
+  useFactory: (config: AppConfig) => {
+    return config.debug ? new ConsoleLogger() : new RemoteLogger();
+  },
+  deps: [APP_CONFIG],  // Inject APP_CONFIG vào factory
+}
+```
+
+### Multi provider — nhiều implementation cho cùng token
+
+Khi một token cần **nhiều giá trị** (danh sách interceptors, validators...):
+
+```typescript
+export const APP_INITIALIZER = new InjectionToken<(() => void)[]>('app.init');
+
+providers: [
+  { provide: APP_INITIALIZER, useValue: () => loadConfig(), multi: true },
+  { provide: APP_INITIALIZER, useValue: () => loadUser(), multi: true },
+  { provide: APP_INITIALIZER, useValue: () => initAnalytics(), multi: true },
+],
+```
+
+Inject nhận **mảng** tất cả giá trị đã provide:
+
+```typescript
+private initializers = inject(APP_INITIALIZER); // (() => void)[]
+```
+
+### Hierarchical Injector — Element vs Environment
+
+Angular có **hai cây injector**:
+
+| Cây | Mô tả |
+|-----|--------|
+| **Environment injector** | Root → Lazy module → Route providers. `providedIn: 'root'` nằm ở đây. |
+| **Element injector** | Component cha → Component con. `providers: [...]` trong `@Component` nằm ở đây. |
+
+Khi inject, Angular tìm **từ element injector** lên root, nếu không thấy thì sang **environment injector**. Hiểu hierarchy giúp kiểm soát scope (mỗi component có instance riêng vs singleton).
+
+```typescript
+// Component A cung cấp StateService riêng
+@Component({
+  providers: [StateService],  // Mỗi instance ComponentA có StateService riêng
+})
+export class ComponentA {}
+
+// Component B (con của A) inject StateService → nhận instance từ A
+// Component C không phải con của A → nhận instance khác (hoặc từ root)
+```
+
+### Optional inject và forwardRef
+
+```typescript
+// Optional — trả về null nếu không có provider
+private analytics = inject(AnalyticsService, { optional: true });
+
+// forwardRef — tham chiếu class chưa khai báo (tránh circular)
+providers: [
+  { provide: ParentService, useExisting: forwardRef(() => ChildService) },
+]
+```
 
 ---
 

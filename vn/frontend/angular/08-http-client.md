@@ -212,6 +212,119 @@ Có. Trước khi component destroy nên unsubscribe để tránh memory leak. C
 
 ---
 
+## File Upload & Download
+
+### Upload file với progress
+
+Angular `HttpClient` hỗ trợ `reportProgress` và `observe: 'events'` để theo dõi tiến trình upload.
+
+```typescript
+import { HttpClient, HttpEventType } from '@angular/common/http';
+
+@Injectable({ providedIn: 'root' })
+export class FileService {
+  private http = inject(HttpClient);
+
+  upload(file: File): Observable<number | string> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    return this.http.post('/api/files/upload', formData, {
+      reportProgress: true,
+      observe: 'events',
+    }).pipe(
+      map(event => {
+        switch (event.type) {
+          case HttpEventType.UploadProgress:
+            // Tính % upload
+            return event.total
+              ? Math.round((100 * event.loaded) / event.total)
+              : 0;
+          case HttpEventType.Response:
+            // Upload xong — trả về URL file
+            return event.body?.url ?? 'done';
+          default:
+            return 0;
+        }
+      }),
+    );
+  }
+}
+```
+
+Component:
+
+```typescript
+@Component({
+  template: `
+    <input type="file" (change)="onFileSelected($event)" />
+    @if (progress() > 0 && progress() < 100) {
+      <progress [value]="progress()" max="100"></progress>
+      <span>{{ progress() }}%</span>
+    }
+  `,
+})
+export class UploadComponent {
+  private fileService = inject(FileService);
+  progress = signal(0);
+
+  onFileSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    this.fileService.upload(file).subscribe(value => {
+      if (typeof value === 'number') {
+        this.progress.set(value);
+      } else {
+        console.log('Uploaded:', value);
+        this.progress.set(100);
+      }
+    });
+  }
+}
+```
+
+### Upload nhiều file
+
+```typescript
+uploadMultiple(files: File[]): Observable<number> {
+  const formData = new FormData();
+  files.forEach(f => formData.append('files', f, f.name));
+
+  return this.http.post('/api/files/upload-multiple', formData, {
+    reportProgress: true,
+    observe: 'events',
+  }).pipe(
+    filter(event => event.type === HttpEventType.UploadProgress),
+    map(event => event.total ? Math.round((100 * event.loaded) / event.total) : 0),
+  );
+}
+```
+
+### Download file (blob)
+
+```typescript
+download(filename: string): Observable<Blob> {
+  return this.http.get(`/api/files/download/${filename}`, {
+    responseType: 'blob',
+  });
+}
+
+// Trigger download trong browser
+downloadAndSave(filename: string) {
+  this.download(filename).subscribe(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+```
+
+---
+
 ## Senior / Master
 
 - **Global ErrorHandler**: Angular cung cấp class `ErrorHandler` để bắt mọi error chưa được xử lý (throw trong component, service, v.v.). Override để log lên server (Sentry, Datadog) hoặc hiển thị thông báo toàn cục:

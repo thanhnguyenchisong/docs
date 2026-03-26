@@ -442,3 +442,42 @@ flowchart LR
 8. **DevTools**: quan sát action/state để debug.
 
 ---
+
+## NgRx Signal Store (Xem chi tiết bài 21)
+
+**@ngrx/signals** là API mới (Angular 16+) dùng **signal** thay vì Redux boilerplate. Ít code hơn, phù hợp feature state hoặc app trung bình.
+
+```typescript
+import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+
+export const ProductStore = signalStore(
+  withState({ products: [] as Product[], loading: false }),
+  withComputed((store) => ({
+    productCount: computed(() => store.products().length),
+  })),
+  withMethods((store) => ({
+    async loadProducts() {
+      patchState(store, { loading: true });
+      const products = await firstValueFrom(inject(ProductService).getAll());
+      patchState(store, { products, loading: false });
+    },
+  })),
+);
+
+// Component
+readonly store = inject(ProductStore);
+// Template: store.products(), store.loading(), store.loadProducts()
+```
+
+**So sánh nhanh:**
+
+| | NgRx Store (truyền thống) | NgRx Signal Store |
+|---|---|---|
+| **Boilerplate** | Nhiều (actions, reducers, effects, selectors) | Ít (`signalStore`, `withState`, `withMethods`) |
+| **State access** | Observable (`store.select`) | Signal (`store.products()`) |
+| **Phù hợp** | App lớn, strict Redux pattern | Feature state, prototype, app vừa |
+
+→ **Chi tiết đầy đủ**: [21 - Signals & Zoneless (NgRx Signal Store)](21-signals-zoneless.md#ngrx-signal-store)
+
+---
+

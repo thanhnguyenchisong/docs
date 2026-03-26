@@ -245,9 +245,12 @@ closeSidebar() {
   this.router.navigate([{ outlets: { sidebar: null } }], { relativeTo: this.activatedRoute });
   // hoặc tuyệt đối: this.router.navigate(['/', { outlets: { sidebar: null } }]);
 }
-Lưu ý Named outlet (ví dụ sidebar) đặt ở layout App – KHÔNG cần outlet trong Product. Chỉ rounter cha con nested children thì cần outlet trong cha.
-``
-<!-- trong ProductListComponent là có thể chạy đc khi ng dùng bấm vào. Sẽ hiển thị 1 sidebar bên cạnh thông tin chính-->
+```
+
+> **Lưu ý:** Named outlet (ví dụ sidebar) đặt ở layout App – KHÔNG cần outlet trong Product. Chỉ router cha con nested children thì cần outlet trong cha.
+
+```html
+<!-- trong ProductListComponent là có thể chạy được khi người dùng bấm vào. Sẽ hiển thị 1 sidebar bên cạnh thông tin chính -->
 <button [routerLink]="[{ outlets: { sidebar: ['filter'] } }]">Bộ lọc</button>
 <button [routerLink]="[{ outlets: { sidebar: ['cart'] } }]">Giỏ hàng</button>
 <button [routerLink]="[{ outlets: { sidebar: null } }]">Đóng sidebar</button>

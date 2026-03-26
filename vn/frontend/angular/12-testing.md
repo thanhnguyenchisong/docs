@@ -202,8 +202,169 @@ Unit test nhanh, test từng class/function/component. E2E test toàn bộ luồ
 - **fakeAsync / tick**: `fakeAsync(() => { ...; tick(1000); expect(...).toBe(...); })` — điều khiển thời gian ảo, test timer/ debounce mà không cần chờ thật.
 - **TestBed.inject** vs **TestBed.get**: Dùng `TestBed.inject(Service)` (typed); `get` deprecated.
 - **Override component**: `TestBed.overrideComponent(MyComponent, { set: { providers: [...] } })` để thay provider cho một component trong test.
-- **NgRx**: Test reducer với state + action → assert state mới; test effect với `provideMockActions` và mock service. Chi tiết: [15 - Master Angular](15-master-angular.md#checklist-phỏng-vấn-senior-angular).
+- **NgRx**: Test reducer với state + action → assert state mới; test effect với `provideMockActions` và mock service.
+
+### Component Harness (CDK Testing)
+
+**Component Harness** = API của Angular CDK để test component mà **không phụ thuộc vào DOM selector** (class, id). Khi component thay đổi template interno → test không bị vỡ.
+
+```typescript
+import { HarnessPredicate } from '@angular/cdk/testing';
+import { ComponentHarness } from '@angular/cdk/testing';
+
+// Tạo harness cho component custom
+export class ProductCardHarness extends ComponentHarness {
+  static hostSelector = 'app-product-card';
+
+  // Locator — tìm element bên trong
+  private getTitle = this.locatorFor('.product-title');
+  private getPrice = this.locatorFor('.product-price');
+  private getAddButton = this.locatorFor('button.add-to-cart');
+
+  // API public
+  async getProductName(): Promise<string> {
+    const title = await this.getTitle();
+    return title.text();
+  }
+
+  async getProductPrice(): Promise<string> {
+    const price = await this.getPrice();
+    return price.text();
+  }
+
+  async clickAddToCart(): Promise<void> {
+    const btn = await this.getAddButton();
+    return btn.click();
+  }
+
+  // Filter – tìm harness theo điều kiện
+  static with(options: { name?: string }): HarnessPredicate<ProductCardHarness> {
+    return new HarnessPredicate(ProductCardHarness, options)
+      .addOption('name', options.name, async (harness, name) => {
+        return (await harness.getProductName()) === name;
+      });
+  }
+}
+```
+
+**Sử dụng trong test:**
+
+```typescript
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+
+describe('ProductListComponent', () => {
+  let loader: HarnessLoader;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ProductListComponent],
+      providers: [{ provide: ProductService, useValue: mockProductService }],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ProductListComponent);
+    loader = TestbedHarnessEnvironment.loader(fixture);
+  });
+
+  it('should display products', async () => {
+    const cards = await loader.getAllHarnesses(ProductCardHarness);
+    expect(cards.length).toBe(3);
+
+    const firstName = await cards[0].getProductName();
+    expect(firstName).toBe('Sản phẩm A');
+  });
+
+  it('should find product by name', async () => {
+    const card = await loader.getHarness(
+      ProductCardHarness.with({ name: 'Sản phẩm B' })
+    );
+    expect(await card.getProductPrice()).toContain('100,000');
+  });
+});
+```
+
+**Lợi ích**: Test không phụ thuộc CSS selector → component refactor template không vỡ test. Angular Material cung cấp harness cho mọi component (MatButtonHarness, MatInputHarness...).
+
+### Marble Testing (RxJS)
+
+Test Observable bằng **marble diagram** — mô tả stream bằng chuỗi ký tự:
+
+```typescript
+import { TestScheduler } from 'rxjs/testing';
+
+describe('SearchService', () => {
+  let scheduler: TestScheduler;
+
+  beforeEach(() => {
+    scheduler = new TestScheduler((actual, expected) => {
+      expect(actual).toEqual(expected);
+    });
+  });
+
+  it('should debounce search input', () => {
+    scheduler.run(({ cold, expectObservable }) => {
+      // Marble: a--b--c  (mỗi - = 1 frame)
+      const input$ = cold('a-b-c---|', { a: 'an', b: 'ang', c: 'angular' });
+
+      const result$ = input$.pipe(
+        debounceTime(3), // 3 frames
+        distinctUntilChanged(),
+      );
+
+      // Expected: chỉ emit 'angular' sau debounce
+      expectObservable(result$).toBe('------c-|', { c: 'angular' });
+    });
+  });
+
+  it('should switchMap to API call', () => {
+    scheduler.run(({ cold, hot, expectObservable }) => {
+      const input$ = hot('  -a---b---|');
+      const apiA$ = cold('    --x|', { x: ['resultA'] });
+      const apiB$ = cold('        --y|', { y: ['resultB'] });
+
+      const result$ = input$.pipe(
+        switchMap(val => val === 'a' ? apiA$ : apiB$),
+      );
+
+      // switchMap hủy apiA khi b đến
+      expectObservable(result$).toBe('-------y-|', { y: ['resultB'] });
+    });
+  });
+});
+```
+
+**Marble syntax:**
+
+| Ký hiệu | Ý nghĩa |
+|----------|---------|
+| `-` | 1 frame (10ms virtual time) |
+| `a`, `b`, `c` | Emit giá trị |
+| `\|` | Complete |
+| `#` | Error |
+| `^` | Subscription point (hot) |
+| `(ab)` | Nhóm emit cùng frame |
+
+### SpyOn Patterns
+
+```typescript
+// Spy method và trả giá trị
+spyOn(productService, 'getAll').and.returnValue(of([mockProduct]));
+
+// Spy và theo dõi gọi
+const spy = spyOn(analytics, 'track');
+component.onAddToCart(product);
+expect(spy).toHaveBeenCalledWith('add_to_cart', { productId: 1 });
+expect(spy).toHaveBeenCalledTimes(1);
+
+// Spy property (getter)
+spyOnProperty(authService, 'isLoggedIn').and.returnValue(true);
+
+// jasmine.createSpyObj — tạo mock object với nhiều method
+const mockRouter = jasmine.createSpyObj('Router', ['navigate', 'navigateByUrl']);
+mockRouter.navigate.and.returnValue(Promise.resolve(true));
+providers: [{ provide: Router, useValue: mockRouter }],
+```
 
 ---
 
 → Tiếp theo: [13 - Build & Deploy](13-build-deploy.md)
+

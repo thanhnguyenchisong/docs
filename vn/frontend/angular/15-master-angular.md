@@ -201,8 +201,65 @@ Sau khi học xong 01–16 (gồm AG-Grid), bạn nên trả lời rõ ràng cá
 - [ ] **shareReplay**: Cache Observable, `refCount` là gì?
 - [ ] **toSignal / toObservable**: Bridge giữa signal và Observable?
 
+### @defer, Content Projection & Dynamic Components
+
+- [ ] **@defer**: Trigger nào có (on viewport, on idle, when, on interaction)? `@placeholder` vs `@loading`? Khác gì lazy load route?
+- [ ] **@defer prefetch**: Tải trước nhưng chưa render — dùng khi nào?
+- [ ] **Content Projection**: Single-slot vs multi-slot (`select`), `ngProjectAs`, `ngTemplateOutlet`?
+- [ ] **Dynamic Components**: `NgComponentOutlet` vs `ViewContainerRef.createComponent()` — khi nào dùng cái nào?
+
+### Authentication & Authorization
+
+- [ ] **JWT flow**: Access token vs refresh token? Lưu ở đâu an toàn (memory, HttpOnly cookie)?
+- [ ] **Auth Interceptor**: Gắn token, xử lý 401, refresh token trong interceptor?
+- [ ] **Role-based guard**: `canActivate` với role, directive `*appHasRole`?
+- [ ] **OAuth2/OIDC**: PKCE flow cho SPA? Khi nào dùng OAuth2 thay JWT tự quản lý?
+
+### PWA & Real-time
+
+- [ ] **Service Worker**: `ngsw-config.json`, cache strategies (performance vs freshness)?
+- [ ] **PWA**: Cách kiểm tra update app mới, push notification flow?
+- [ ] **WebSocket**: RxJS `webSocket()`, reconnect, multiplexing?
+- [ ] **SSE vs WebSocket**: Khi nào dùng cái nào?
+
+### Micro-frontends & Monorepo
+
+- [ ] **Nx**: Affected build/test, dependency graph, module boundaries?
+- [ ] **Library structure**: shared/ui, shared/data-access, feature/xxx — tổ chức thế nào?
+- [ ] **Module Federation**: Host vs Remote, shared dependencies, deploy độc lập?
+- [ ] **Native Federation**: Khác gì Webpack Module Federation? Khi nào dùng?
+
+### Signals & Zoneless (Bài 21)
+
+- [ ] **Signal vs Observable**: Khi nào dùng signal, khi nào dùng Observable? `toSignal()` / `toObservable()`?
+- [ ] **linkedSignal**: Khác gì computed? Dùng khi nào (reset selected item, form defaults)?
+- [ ] **resource() / rxResource()**: Khai báo async data loading, auto re-fetch khi signal đổi?
+- [ ] **NgRx Signal Store**: `signalStore`, `withState`, `withComputed`, `withMethods`, `patchState`? So sánh với NgRx Store?
+- [ ] **Zoneless Angular**: Cách bật, khi nào CD chạy không có Zone.js? Checklist Zoneless-ready?
+- [ ] **effect() cleanup**: `onCleanup` dùng khi nào? effect chạy trong injection context là gì?
+
+### SSR & Hydration (Bài 22)
+
+- [ ] **SSR vs SSG vs CSR**: Khi nào chọn renderMode nào?
+- [ ] **Hydration**: Tại sao Angular không xóa DOM server rồi render lại? ngSkipHydration dùng khi nào?
+- [ ] **TransferState**: Tránh gọi API hai lần (server + client) như thế nào?
+- [ ] **SSR Caveats**: window, document, localStorage trên server? isPlatformBrowser, afterNextRender?
+- [ ] **Incremental Hydration**: Kết hợp `@defer (hydrate on viewport)` để giảm JS trên client?
+- [ ] **SEO**: Meta tags động, JSON-LD structured data, route title resolver?
+
+### Design Patterns & Architecture (Bài 23)
+
+- [ ] **Facade Pattern**: Khi nào dùng facade thay vì inject nhiều service trực tiếp?
+- [ ] **Strategy Pattern**: Tách behavior (export format, validation rules) bằng DI?
+- [ ] **Adapter Pattern**: Chuyển đổi API DTO ↔ App Model tại tầng nào?
+- [ ] **Repository Pattern**: Tách data access khỏi business logic?
+- [ ] **Error Handling Architecture**: GlobalErrorHandler, HTTP error interceptor, notification service?
+- [ ] **Accessibility (a11y)**: ARIA roles, CDK A11y, focus trap, LiveAnnouncer, keyboard navigation?
+
 ---
 
-Nếu bạn trả lời được hầu hết các mục trên và áp dụng được vào thiết kế/implement một ứng dụng Angular lớn (routing, form, HTTP, state, **AG-Grid**, animations, i18n, lazy load, OnPush, test), bạn đạt mức **senior / master Angular web builder**. Ôn lại các bài tương ứng (02, 03, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, **16**) cho từng chủ đề.
+Nếu bạn trả lời được hầu hết các mục trên và áp dụng được vào thiết kế/implement một ứng dụng Angular lớn (routing, form, HTTP, state, **AG-Grid**, animations, i18n, lazy load, OnPush, test, **auth**, **PWA**, **micro-frontends**, **signals/zoneless**, **SSR/hydration**, **design patterns**), bạn đạt mức **senior / master Angular web builder**. Ôn lại các bài tương ứng (02–23) cho từng chủ đề.
 
-→ Quay lại [README](../README.md) | [10 - State](10-state-architecture.md) | [14 - NgRx](14-ngrx.md) | [16 - AG-Grid](16-ag-grid.md)
+→ Quay lại [README](../README.md) | [10 - State](10-state-architecture.md) | [14 - NgRx](14-ngrx.md) | [16 - AG-Grid](16-ag-grid.md) | [17 - @defer & Dynamic](17-defer-dynamic-projection.md) | [18 - Auth](18-authentication.md) | [19 - PWA & Real-time](19-pwa-realtime.md) | [20 - Micro-frontends](20-microfrontend-monorepo.md) | [21 - Signals & Zoneless](21-signals-zoneless.md) | [22 - SSR & Hydration](22-ssr-hydration.md) | [23 - Design Patterns](23-design-patterns.md)
+
+

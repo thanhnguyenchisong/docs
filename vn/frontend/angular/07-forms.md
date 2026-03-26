@@ -161,9 +161,183 @@ FormBuilder chỉ là helper: `this.fb.group({...})` tương đương `new FormG
 
 ## Senior / Master
 
-- **ControlValueAccessor**: Interface để tạo **custom form control** tích hợp với Reactive Forms (ví dụ date picker, tag input). Implement `writeValue`, `registerOnChange`, `registerOnTouched`, `setDisabledState` và đăng ký với `NG_VALUE_ACCESSOR` (multi: true). Khi đó có thể dùng `formControlName` trên component của bạn.
-- **Async validator**: Trả về `Observable<ValidationErrors | null>`; dùng cho kiểm tra trùng username, validate API. Tránh gọi API quá dày (debounce trong form hoặc template).
-- **FormArray với FormGroup**: Danh sách object (ví dụ nhiều địa chỉ): `this.fb.array([this.fb.group({ street: [''], city: [''] })])`; template dùng `formGroupName` với index.
+### Typed Forms (Angular 14+)
+
+Từ Angular 14, Reactive Forms hỗ trợ **strict typing** — `FormGroup`, `FormControl` có generic type, TypeScript kiểm tra tên field và kiểu giá trị tại compile time.
+
+```typescript
+// ❌ Cũ (untyped) — form.value là any
+const form = new FormGroup({
+  name: new FormControl(''),
+  age: new FormControl(0),
+});
+form.value; // { name: string | null; age: number | null } — nhưng trước v14 là any
+
+// ✅ Mới (typed) — FormBuilder tự infer type
+const form = this.fb.group({
+  name: this.fb.nonNullable.control('', Validators.required),
+  age: this.fb.nonNullable.control(0),
+  email: ['', [Validators.required, Validators.email]],
+});
+// form.value → { name: string; age: number; email: string | null }
+// form.getRawValue() → { name: string; age: number; email: string }
+
+// Truy cập type-safe
+form.controls.name.value; // string (nonNullable)
+form.controls.email.value; // string | null
+```
+
+**NonNullableFormBuilder** — tất cả control mặc định `nonNullable`:
+
+```typescript
+private fb = inject(NonNullableFormBuilder);
+
+form = this.fb.group({
+  name: ['', Validators.required],
+  email: ['', Validators.email],
+});
+// form.value → { name: string; email: string } (không có null)
+// Reset về giá trị khởi tạo (không phải null)
+form.reset(); // → { name: '', email: '' }
+```
+
+### ControlValueAccessor — Custom Form Control hoàn chỉnh
+
+Tạo component mà dùng được với `formControlName`, `[(ngModel)]`, `formControl`:
+
+```typescript
+import { Component, forwardRef, input, signal } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+
+@Component({
+  selector: 'app-star-rating',
+  standalone: true,
+  template: `
+    @for (star of stars; track star) {
+      <button
+        type="button"
+        [class.active]="star <= value()"
+        [attr.aria-label]="star + ' sao'"
+        (click)="select(star)"
+        [disabled]="disabled()"
+      >
+        ★
+      </button>
+    }
+  `,
+  styles: [`
+    button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #ccc; }
+    button.active { color: #f5a623; }
+    button:disabled { cursor: not-allowed; opacity: 0.5; }
+  `],
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => StarRatingComponent),
+      multi: true,
+    },
+  ],
+})
+export class StarRatingComponent implements ControlValueAccessor {
+  stars = [1, 2, 3, 4, 5];
+  value = signal(0);
+  disabled = signal(false);
+
+  private onChange: (value: number) => void = () => {};
+  private onTouched: () => void = () => {};
+
+  // Angular gọi khi form set giá trị (patchValue, setValue, reset)
+  writeValue(value: number): void {
+    this.value.set(value || 0);
+  }
+
+  // Angular truyền callback — gọi khi giá trị đổi
+  registerOnChange(fn: (value: number) => void): void {
+    this.onChange = fn;
+  }
+
+  // Angular truyền callback — gọi khi control bị "chạm" (blur)
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  // Angular gọi khi form control bị disabled/enabled
+  setDisabledState(isDisabled: boolean): void {
+    this.disabled.set(isDisabled);
+  }
+
+  select(star: number) {
+    this.value.set(star);
+    this.onChange(star);   // Thông báo form: giá trị đã đổi
+    this.onTouched();      // Thông báo form: đã tương tác
+  }
+}
+```
+
+**Sử dụng trong form:**
+
+```html
+<form [formGroup]="reviewForm">
+  <app-star-rating formControlName="rating" />
+  <span *ngIf="reviewForm.get('rating')?.hasError('min')">Chọn ít nhất 1 sao</span>
+</form>
+```
+
+```typescript
+reviewForm = this.fb.group({
+  rating: [0, [Validators.required, Validators.min(1)]],
+  comment: [''],
+});
+```
+
+### Async Validator với Debounce
+
+```typescript
+import { AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
+import { debounceTime, distinctUntilChanged, switchMap, map, first } from 'rxjs';
+
+export function uniqueUsername(userService: UserService): AsyncValidatorFn {
+  return (control: AbstractControl): Observable<ValidationErrors | null> => {
+    if (!control.value) return of(null);
+
+    return control.valueChanges.pipe(
+      debounceTime(400),
+      distinctUntilChanged(),
+      switchMap(value => userService.checkUsername(value)),
+      map(exists => (exists ? { usernameTaken: true } : null)),
+      first(), // Complete sau lần đầu
+    );
+  };
+}
+
+// Dùng
+form = this.fb.group({
+  username: ['', {
+    validators: [Validators.required],
+    asyncValidators: [uniqueUsername(inject(UserService))],
+    updateOn: 'blur', // Chỉ validate khi blur (tránh gọi API liên tục)
+  }],
+});
+```
+
+### Cross-field Validation
+
+```typescript
+function passwordMatch(group: AbstractControl): ValidationErrors | null {
+  const password = group.get('password')?.value;
+  const confirm = group.get('confirmPassword')?.value;
+  return password === confirm ? null : { passwordMismatch: true };
+}
+
+form = this.fb.group({
+  password: ['', [Validators.required, Validators.minLength(6)]],
+  confirmPassword: ['', Validators.required],
+}, { validators: [passwordMatch] }); // Validator ở cấp FormGroup
+```
+
+```html
+<span *ngIf="form.hasError('passwordMismatch')">Mật khẩu không khớp</span>
+```
 
 ---
 

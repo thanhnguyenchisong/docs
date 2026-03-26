@@ -106,7 +106,9 @@ subject.subscribe(v => console.log('B:', v));
 
 subject.next(1);
 subject.next(2);
+```
 
+---
 
 ## async pipe và unsubscribe
 
