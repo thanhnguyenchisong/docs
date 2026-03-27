@@ -115,10 +115,12 @@ public class HelperService {
 
 | Đặc điểm | Normal Scope | Pseudo Scope |
 | :--- | :--- | :--- |
-| **Annotations** | `@ApplicationScoped`, `@RequestScoped`, `@SessionScoped` | `@Dependent` (default), `@Singleton` |
+| **Annotations** | `@ApplicationScoped`, `@RequestScoped` | `@Dependent` (default), `@Singleton` |
 | **Cơ chế Inject** | **Client Proxy** (Vỏ bọc) | **Direct Reference** (Instance thật) |
 | **Lifecycle** | Có điểm bắt đầu/kết thúc rõ ràng do Context quản lý. | Phụ thuộc vào bean chứa nó (`@Dependent`) hoặc sống mãi (`@Singleton`). |
 | **Lazy Init** | **Có**. Bean thật chỉ được tạo khi gọi hàm đầu tiên. | **Không**. Tạo ngay khi được inject. |
+
+> **Lưu ý**: `@SessionScoped` cũng là Normal Scope theo CDI spec, nhưng Quarkus **không hỗ trợ mặc định**. Xem phần [@SessionScoped](#sessionscoped--quarkus-có-hỗ-trợ-không) bên dưới.
 
 #### Client Proxy là gì?
 
@@ -149,6 +151,139 @@ public class HelperService {
 
 - **Gọi field trực tiếp**: `proxy.field` có thể null hoặc sai giá trị (vì không qua method delegate). -> **Luôn dùng Getter/Setter**.
 - **Private Methods**: Proxy chuẩn không gọi được private method (Quarkus fix được bằng bytecode transformation nhưng nên hạn chế).
+
+### @SessionScoped — Quarkus Có Hỗ Trợ Không?
+
+#### TL;DR
+
+> **Quarkus ArC mặc định KHÔNG hỗ trợ `@SessionScoped`.** Muốn dùng phải thêm extension `quarkus-undertow` (Servlet container). Nhưng trong kiến trúc REST API / microservices, `@SessionScoped` **gần như không nên dùng**.
+
+#### Tại sao Quarkus không hỗ trợ mặc định?
+
+```
+CDI Spec định nghĩa @SessionScoped:
+  → Bean tồn tại trong 1 HTTP Session
+  → HTTP Session = server giữ state cho mỗi client (JSESSIONID cookie)
+  → Yêu cầu Servlet container (HttpServletRequest → HttpSession)
+
+Quarkus mặc định:
+  → Dùng RESTEasy Reactive + Vert.x (KHÔNG phải Servlet container)
+  → KHÔNG có HttpSession → KHÔNG có Session context
+  → @SessionScoped → ContextNotActiveException ❌
+```
+
+#### 4 Scopes Quarkus ArC hỗ trợ mặc định
+
+| Scope | Annotation | Lifecycle | Mặc định |
+|-------|-----------|-----------|----------|
+| **Application** | `@ApplicationScoped` | App start → App stop | ✅ |
+| **Request** | `@RequestScoped` | HTTP request start → end | ✅ |
+| **Dependent** | `@Dependent` | Theo bean cha | ✅ |
+| **Singleton** | `@Singleton` | App start → App stop | ✅ |
+| **Session** | `@SessionScoped` | HTTP Session | ❌ Phải thêm `quarkus-undertow` |
+
+#### Cách bật @SessionScoped (nếu thực sự cần)
+
+```xml
+<!-- Thêm Servlet support → có HttpSession → có @SessionScoped -->
+<dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-undertow</artifactId>
+</dependency>
+```
+
+```java
+// SAU khi thêm quarkus-undertow:
+@SessionScoped  // ✅ Hoạt động (Undertow cung cấp Session context)
+public class ShoppingCart implements Serializable {  // ⚠️ PHẢI implements Serializable
+    private List<CartItem> items = new ArrayList<>();
+    
+    public void addItem(CartItem item) {
+        items.add(item);
+    }
+    
+    public List<CartItem> getItems() {
+        return Collections.unmodifiableList(items);
+    }
+}
+```
+
+> **⚠️ Cảnh báo**: Thêm `quarkus-undertow` chuyển app từ Vert.x sang Servlet mode → **mất lợi thế reactive và performance**, startup chậm hơn, memory cao hơn.
+
+#### Tại sao KHÔNG nên dùng @SessionScoped trong Microservices?
+
+```
+Vấn đề:
+  1. Scale: 3 pods chạy → Session trên pod A, request đến pod B → mất session
+     → Phải dùng sticky session (ALB) hoặc session replication → phức tạp
+
+  2. Memory: 10,000 users online = 10,000 session objects trên MỖI pod
+     → Quarkus ưu điểm RAM thấp bị triệt tiêu
+
+  3. Failover: Pod crash → mất TOÀN BỘ sessions → user bị logout
+  
+  4. Stateless: REST API nên stateless — mỗi request tự chứa đủ thông tin
+     → Dễ scale, dễ cache, dễ test
+```
+
+#### Giải pháp thay thế (KHUYẾN KHÍCH)
+
+| Giải pháp | Use case | Ví dụ |
+|-----------|---------|-------|
+| **JWT Token** | Authentication, user context | User login → nhận JWT → gửi kèm mỗi request |
+| **Redis** | Shopping cart, wizard state | Lưu `cart:{userId}` trên Redis (shared giữa pods) |
+| **@RequestScoped + JWT** | Request-level user context | Extract user info từ JWT mỗi request |
+| **Database** | Persistent state | Draft orders, user preferences |
+
+```java
+// ✅ KHUYẾN KHÍCH: Shopping Cart KHÔNG dùng @SessionScoped
+// Dùng Redis → scale được, pod crash không mất data
+
+@ApplicationScoped
+public class CartService {
+    @Inject RedisClient redis;
+
+    public Cart getCart(String userId) {
+        String json = redis.get("cart:" + userId);
+        return json != null ? Json.parse(json, Cart.class) : new Cart();
+    }
+
+    public void addItem(String userId, CartItem item) {
+        Cart cart = getCart(userId);
+        cart.addItem(item);
+        redis.setex("cart:" + userId, 86400, Json.encode(cart));  // TTL 24h
+    }
+    
+    public void clear(String userId) {
+        redis.del("cart:" + userId);
+    }
+}
+
+@Path("/cart")
+public class CartResource {
+    @Inject CartService cartService;
+    @Inject JsonWebToken jwt;  // userId từ JWT token
+
+    @GET
+    public Cart getCart() {
+        return cartService.getCart(jwt.getSubject());
+    }
+
+    @POST @Path("/items")
+    public Response addItem(CartItem item) {
+        cartService.addItem(jwt.getSubject(), item);
+        return Response.ok().build();
+    }
+}
+```
+
+#### Câu hỏi phỏng vấn
+
+**Q: Quarkus có @SessionScoped không?**
+> Mặc định **không**. Quarkus dùng Vert.x/RESTEasy Reactive (non-Servlet), không có HTTP Session context. Phải thêm `quarkus-undertow` để bật, nhưng điều này đánh đổi performance. Khuyến khích dùng stateless alternatives (JWT + Redis/DB).
+
+**Q: @ApplicationScoped vs @Singleton?**
+> Cả hai 1 instance per app. `@ApplicationScoped` (Normal Scope): Client Proxy → lazy init, scope mismatch safe. `@Singleton` (Pseudo): inject trực tiếp → eager init, không proxy overhead. **Ưu tiên `@ApplicationScoped`** trừ khi cần reference trực tiếp.
 
 ---
 

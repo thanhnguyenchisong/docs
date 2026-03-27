@@ -4,11 +4,12 @@
 1. [RESTEasy Reactive & Smart Dispatching](#resteasy-reactive)
 2. [JAX-RS Annotations](#jax-rs-annotations)
 3. [Filters & Interceptors](#filters-&-interceptors)
-4. [Validation](#validation)
-5. [REST Client](#rest-client)
-6. [Exception Handling](#exception-handling)
-7. [Reactive REST](#reactive-rest)
-8. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+4. [@Provider — JAX-RS Extension Registration](#provider--jax-rs-extension-registration)
+5. [Validation](#validation)
+6. [REST Client](#rest-client)
+7. [Exception Handling](#exception-handling)
+8. [Reactive REST](#reactive-rest)
+9. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -175,6 +176,324 @@ public class HeaderFilter implements ContainerResponseFilter {
     }
 }
 ```
+
+### `@Provider` — JAX-RS Extension Registration
+
+#### `@Provider` là gì?
+
+`@Provider` là annotation của JAX-RS đánh dấu một class là **extension point** — mở rộng hành vi của JAX-RS runtime. Class nào implement một JAX-RS contract (Filter, Interceptor, ExceptionMapper, MessageBodyReader/Writer...) **phải** được đánh dấu `@Provider` để JAX-RS runtime nhận diện và đăng ký.
+
+```java
+// KHÔNG có @Provider → JAX-RS KHÔNG biết class này → KHÔNG hoạt động
+public class MyFilter implements ContainerRequestFilter { }  // ❌ Bị bỏ qua!
+
+// CÓ @Provider → JAX-RS tự đăng ký
+@Provider
+public class MyFilter implements ContainerRequestFilter { }  // ✅ Được đăng ký
+```
+
+#### 6 Loại Provider trong JAX-RS
+
+| # | Interface | Vai trò | Khi nào chạy |
+|---|-----------|---------|-------------|
+| ① | `ContainerRequestFilter` | Filter request trước khi vào Resource | Nhận request |
+| ② | `ContainerResponseFilter` | Filter response trước khi trả về client | Trả response |
+| ③ | `ExceptionMapper<T>` | Chuyển Exception thành HTTP Response | Exception xảy ra |
+| ④ | `MessageBodyReader<T>` | Deserialize request body → Java object | `@Consumes` |
+| ⑤ | `MessageBodyWriter<T>` | Serialize Java object → response body | `@Produces` |
+| ⑥ | `ContextResolver<T>` | Cung cấp context objects (ObjectMapper...) | Framework cần config |
+
+#### Thứ tự thực thi (Execution Pipeline)
+
+```
+Client Request
+     │
+     ▼
+┌─────────────────────────────────────────────────────────┐
+│ ① ContainerRequestFilter (@PreMatching)                 │ ← Trước route matching
+│    → Authentication, Rate limiting, Logging             │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                    Route Matching (JAX-RS match @Path + @GET/POST)
+                         │
+┌────────────────────────┴────────────────────────────────┐
+│ ① ContainerRequestFilter (post-matching)                │ ← Sau route matching
+│    → Authorization, Input validation                    │
+└────────────────────────┬────────────────────────────────┘
+                         │
+┌────────────────────────┴────────────────────────────────┐
+│ ④ MessageBodyReader                                     │ ← Deserialize JSON → Object
+└────────────────────────┬────────────────────────────────┘
+                         │
+┌────────────────────────┴────────────────────────────────┐
+│ 🎯 Resource Method thực thi                             │ ← Business logic
+└────────────────────────┬────────────────────────────────┘
+                         │ (nếu Exception → ③ ExceptionMapper)
+                         │
+┌────────────────────────┴────────────────────────────────┐
+│ ⑤ MessageBodyWriter                                     │ ← Serialize Object → JSON
+└────────────────────────┬────────────────────────────────┘
+                         │
+┌────────────────────────┴────────────────────────────────┐
+│ ② ContainerResponseFilter                               │ ← Headers, logging
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+                   Client Response
+```
+
+#### Ví dụ chi tiết — Request Filter (Authentication)
+
+```java
+@Provider
+@Priority(Priorities.AUTHENTICATION)  // Chạy sớm nhất
+public class JwtAuthFilter implements ContainerRequestFilter {
+    
+    @Inject
+    JwtService jwtService;
+
+    @Override
+    public void filter(ContainerRequestContext ctx) throws IOException {
+        // Bỏ qua public endpoints
+        if (isPublicPath(ctx.getUriInfo().getPath())) return;
+
+        String token = ctx.getHeaderString(HttpHeaders.AUTHORIZATION);
+        if (token == null || !token.startsWith("Bearer ")) {
+            // abortWith: DỪNG pipeline, KHÔNG vào Resource
+            ctx.abortWith(Response.status(401)
+                .entity(new ErrorResponse(401, "Missing token")).build());
+            return;
+        }
+        
+        try {
+            var claims = jwtService.verify(token.substring(7));
+            ctx.setProperty("userId", claims.getSubject());
+        } catch (Exception e) {
+            ctx.abortWith(Response.status(401)
+                .entity(new ErrorResponse(401, "Invalid token")).build());
+        }
+    }
+}
+```
+
+#### @PreMatching — Filter trước Route Matching
+
+```java
+@Provider
+@PreMatching  // Chạy TRƯỚC khi JAX-RS match route → có thể thay đổi method/path
+public class MethodOverrideFilter implements ContainerRequestFilter {
+    @Override
+    public void filter(ContainerRequestContext ctx) {
+        // Cho phép client gửi POST với header X-HTTP-Method-Override: DELETE
+        String override = ctx.getHeaderString("X-HTTP-Method-Override");
+        if (override != null) {
+            ctx.setMethod(override);  // POST → DELETE
+        }
+    }
+}
+```
+
+#### Response Filter — Security Headers
+
+```java
+@Provider
+public class SecurityHeadersFilter implements ContainerResponseFilter {
+    @Override
+    public void filter(ContainerRequestContext req, ContainerResponseContext res) {
+        res.getHeaders().add("X-Content-Type-Options", "nosniff");
+        res.getHeaders().add("X-Frame-Options", "DENY");
+        res.getHeaders().add("X-XSS-Protection", "1; mode=block");
+        res.getHeaders().add("Strict-Transport-Security", "max-age=31536000");
+        
+        // Request timing
+        Long startTime = (Long) req.getProperty("startTime");
+        if (startTime != null) {
+            long duration = System.currentTimeMillis() - startTime;
+            res.getHeaders().add("X-Response-Time", duration + "ms");
+        }
+    }
+}
+```
+
+#### MessageBodyReader — Custom Deserializer (CSV)
+
+```java
+@Provider
+@Consumes("text/csv")  // Đọc CSV body → List<Product>
+public class CsvProductReader implements MessageBodyReader<List<Product>> {
+
+    @Override
+    public boolean isReadable(Class<?> type, Type genericType, 
+                               Annotation[] annotations, MediaType mediaType) {
+        return List.class.isAssignableFrom(type);
+    }
+
+    @Override
+    public List<Product> readFrom(Class<List<Product>> type, Type genericType,
+                                   Annotation[] annotations, MediaType mediaType,
+                                   MultivaluedMap<String, String> headers,
+                                   InputStream stream) throws IOException {
+        return new BufferedReader(new InputStreamReader(stream))
+            .lines()
+            .skip(1)  // skip header row
+            .map(line -> {
+                String[] parts = line.split(",");
+                return new Product(parts[0], new BigDecimal(parts[1]));
+            })
+            .toList();
+    }
+}
+
+// Sử dụng:
+@POST
+@Consumes("text/csv")
+public Response importProducts(List<Product> products) { ... }
+```
+
+#### ContextResolver — Custom ObjectMapper (Jackson)
+
+```java
+@Provider
+public class JacksonConfig implements ContextResolver<ObjectMapper> {
+    @Override
+    public ObjectMapper getContext(Class<?> type) {
+        return new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
+}
+```
+
+#### @Priority — Điều khiển thứ tự thực thi
+
+```java
+// Priorities constants (jakarta.annotation.Priority):
+//   AUTHENTICATION   = 1000   ← Chạy đầu tiên
+//   AUTHORIZATION    = 2000
+//   HEADER_DECORATOR = 3000
+//   ENTITY_CODER     = 4000
+//   USER             = 5000   ← Chạy cuối cùng
+
+// Số NHỎ hơn → chạy TRƯỚC (RequestFilter)
+// Số NHỎ hơn → chạy SAU  (ResponseFilter — ngược lại!)
+
+@Provider
+@Priority(Priorities.AUTHENTICATION)     // 1000 — chạy đầu tiên
+public class AuthFilter implements ContainerRequestFilter { }
+
+@Provider
+@Priority(Priorities.AUTHORIZATION)      // 2000 — chạy thứ hai
+public class RoleFilter implements ContainerRequestFilter { }
+
+@Provider
+@Priority(Priorities.USER)               // 5000 — chạy cuối
+public class LoggingFilter implements ContainerRequestFilter { }
+```
+
+#### @NameBinding — Apply Filter cho specific Resources
+
+```java
+// 1. Tạo custom annotation
+@NameBinding
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE, ElementType.METHOD})
+public @interface Authenticated { }
+
+// 2. Filter CHỈ apply cho resources có @Authenticated
+@Provider
+@Authenticated  // ← Gắn NameBinding
+@Priority(Priorities.AUTHENTICATION)
+public class AuthFilter implements ContainerRequestFilter {
+    @Override
+    public void filter(ContainerRequestContext ctx) {
+        // Verify JWT token...
+    }
+}
+
+// 3. Resource: CHỈ endpoint có @Authenticated mới qua AuthFilter
+@Path("/orders")
+public class OrderResource {
+    
+    @GET
+    public List<Order> publicList() { ... }          // ← KHÔNG qua AuthFilter
+    
+    @POST
+    @Authenticated                                    // ← CÓ qua AuthFilter
+    public Response createOrder(Order order) { ... }
+    
+    @DELETE
+    @Path("/{id}")
+    @Authenticated                                    // ← CÓ qua AuthFilter  
+    public void deleteOrder(@PathParam("id") Long id) { ... }
+}
+
+// Hoặc apply cho TOÀN BỘ class:
+@Path("/admin")
+@Authenticated      // ← Tất cả endpoints đều qua AuthFilter
+public class AdminResource { ... }
+```
+
+#### Quarkus vs Standard JAX-RS — Auto Discovery
+
+```
+Standard JAX-RS (Tomcat, WildFly...):
+  → @Provider phải đăng ký trong Application class hoặc web.xml
+  → Một số server yêu cầu đăng ký thủ công
+
+Quarkus:
+  → @Provider AUTO-DISCOVER qua Jandex index lúc build
+  → KHÔNG cần đăng ký thủ công, KHÔNG cần Application class
+  → Chỉ cần @Provider → done!
+  
+  ⚠️ Nếu @Provider nằm trong thư viện ngoài (jar):
+     → Cần thêm Jandex index cho thư viện đó:
+     quarkus.index-dependency.my-lib.group-id=com.example
+     quarkus.index-dependency.my-lib.artifact-id=my-lib
+```
+
+#### Lỗi thường gặp
+
+```java
+// ❌ Lỗi 1: Quên @Provider → Filter không hoạt động
+public class MyFilter implements ContainerRequestFilter { }
+// Fix: Thêm @Provider
+
+// ❌ Lỗi 2: ExceptionMapper<Exception> chặn TẤT CẢ exceptions
+@Provider
+public class CatchAll implements ExceptionMapper<Exception> { }
+// → Chặn luôn 404 NotFound, 405 MethodNotAllowed, validation errors!
+// Fix: Dùng @Priority thấp (fallback), HOẶC catch specific exceptions trước
+
+// ❌ Lỗi 3: RequestFilter blocking trên IO thread (Quarkus Reactive)
+@Provider
+public class SlowFilter implements ContainerRequestFilter {
+    public void filter(ContainerRequestContext ctx) {
+        Thread.sleep(1000);  // ❌ Block IO thread → app chậm/treo
+    }
+}
+// Fix: Dùng @Blocking annotation, hoặc async filter
+
+// ❌ Lỗi 4: Filter không được CDI inject
+@Provider
+public class MyFilter implements ContainerRequestFilter {
+    @Inject
+    MyService service;  // ← NULL nếu class không được CDI quản lý
+}
+// Fix: Đảm bảo class có @Provider VÀ nằm trong Jandex index
+```
+
+#### Câu hỏi phỏng vấn
+
+**Q: `@Provider` dùng để làm gì?**
+> Đánh dấu class là JAX-RS extension point. Bất kỳ class nào implement `ContainerRequestFilter`, `ExceptionMapper`, `MessageBodyReader/Writer`... phải có `@Provider` để JAX-RS runtime nhận diện và đăng ký. Trong Quarkus, `@Provider` được auto-discover qua Jandex lúc build.
+
+**Q: Làm sao để Filter chỉ apply cho một số endpoints?**
+> Dùng `@NameBinding`: (1) Tạo custom annotation đánh dấu `@NameBinding`, (2) Gắn annotation đó lên cả Filter và Resource/method cần áp dụng. Filter sẽ chỉ chạy cho endpoints có annotation tương ứng.
+
+**Q: Thứ tự thực thi các Filter?**
+> Dùng `@Priority(value)`. Số nhỏ chạy trước cho RequestFilter (AUTHENTICATION=1000 → AUTHORIZATION=2000 → USER=5000). ResponseFilter ngược lại (số nhỏ chạy SAU). Nếu không có `@Priority`, thứ tự là undefined.
 
 ---
 
