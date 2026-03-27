@@ -14,7 +14,8 @@ NgRx là thư viện quản lý state cho Angular, dựa trên mô hình **Redux
 9. [Feature state và Store](#feature-state-và-store)
 10. [Dùng trong Component](#dùng-trong-component)
 11. [Best practices và Testing](#best-practices-và-testing)
-12. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
+12. [Debug & Xem Toàn Bộ State](#debug--xem-toàn-bộ-state-trong-ngrx)
+13. [Câu hỏi thường gặp](#câu-hỏi-thường-gặp)
 
 ---
 
@@ -362,6 +363,312 @@ describe('productReducer', () => {
     expect(state.loading).toBe(true); // assert loading
   });
 });
+```
+
+---
+
+## Debug & Xem Toàn Bộ State Trong NgRx
+
+Đây là phần quan trọng nhất khi làm việc với NgRx — biết cách xem state, trace action, và tìm bug hiệu quả.
+
+### 1. Redux DevTools (Chrome Extension) — Cách chính
+
+Cài [Redux DevTools Extension](https://chrome.google.com/webstore/detail/redux-devtools) trên Chrome/Edge, sau đó cài **@ngrx/store-devtools** trong project:
+
+```bash
+ng add @ngrx/store-devtools
+# hoặc
+npm install @ngrx/store-devtools
+```
+
+```typescript
+// app.config.ts
+import { provideStoreDevtools } from '@ngrx/store-devtools';
+import { isDevMode } from '@angular/core';
+
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideStore(reducers),
+    provideEffects([ProductEffects]),
+
+    // ✅ Thêm DevTools — CHỈ trong dev mode
+    provideStoreDevtools({
+      maxAge: 50,             // Lưu tối đa 50 actions (tránh memory leak)
+      logOnly: !isDevMode(),  // Production chỉ log, không cho time-travel
+      autoPause: true,        // Pause khi extension không mở
+      connectInZone: true,    // Angular 17+: đảm bảo chạy trong NgZone
+    }),
+  ],
+});
+```
+
+**Mở DevTools:** F12 → Tab **Redux** → Thấy tất cả:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Redux DevTools                                              │
+├──────────────────┬──────────────────────────────────────────┤
+│ Actions Log      │ State / Diff / Action                    │
+│                  │                                          │
+│ @ngrx/store/init │ Tab STATE: xem toàn bộ state hiện tại   │
+│ [Products] Load  │ {                                        │
+│ [Products] Load  │   "products": {                          │
+│   Success        │     "products": [...],                   │
+│ [Cart] Add Item  │     "loading": false,                    │
+│ [Cart] Add Item  │     "error": null                        │
+│                  │   },                                     │
+│                  │   "cart": {                               │
+│                  │     "items": [...]                        │
+│                  │   }                                       │
+│                  │ }                                         │
+│                  │                                          │
+│                  │ Tab DIFF: xem state thay đổi gì          │
+│                  │ Tab ACTION: xem payload của action        │
+└──────────────────┴──────────────────────────────────────────┘
+```
+
+**Các tính năng quan trọng:**
+
+| Tính năng | Cách dùng | Mục đích |
+|-----------|-----------|----------|
+| **State tab** | Bấm vào bất kỳ action → tab State | Xem **toàn bộ state** tại thời điểm đó |
+| **Diff tab** | Bấm vào action → tab Diff | Xem state **thay đổi gì** sau action |
+| **Action tab** | Bấm action → tab Action | Xem **payload** của action (dữ liệu gửi đi) |
+| **Time-travel** | Bấm vào action cũ | App quay về state tại thời điểm đó |
+| **Skip** | Bấm toggle bên cạnh action | **Tắt** 1 action → xem state sẽ thế nào nếu action đó không xảy ra |
+| **Dispatch** | Tab Dispatch (bottom) | Dispatch action **thủ công** để test |
+| **Export/Import** | Nút ⬇️/⬆️ | Export toàn bộ state để chia sẻ bug report |
+
+### 2. Meta-Reducer Logger — Log Action & State ra Console
+
+Meta-reducer là reducer wrap tất cả reducers khác — dùng để log, freeze state, hoặc thêm logic chung.
+
+```typescript
+// store/meta-reducers/logger.ts
+import { ActionReducer, MetaReducer } from '@ngrx/store';
+
+// Log mọi action và state trước/sau
+export function logger(reducer: ActionReducer<any>): ActionReducer<any> {
+  return (state, action) => {
+    const nextState = reducer(state, action);
+
+    console.groupCollapsed(`[NgRx] ${action.type}`);
+    console.log('Previous State:', state);
+    console.log('Action:', action);
+    console.log('Next State:', nextState);
+    console.groupEnd();
+
+    return nextState;
+  };
+}
+
+// Chỉ bật logger trong dev
+import { isDevMode } from '@angular/core';
+
+export const metaReducers: MetaReducer[] = isDevMode()
+  ? [logger]    // Dev: log tất cả actions
+  : [];         // Prod: không log
+```
+
+```typescript
+// app.config.ts
+import { metaReducers } from './store/meta-reducers/logger';
+
+provideStore(reducers, { metaReducers }), // Thêm metaReducers vào store
+```
+
+**Kết quả trong Console (F12):**
+
+```
+▸ [NgRx] [Products] Load
+    Previous State: { products: { products: [], loading: false, error: null } }
+    Action: { type: '[Products] Load' }
+    Next State: { products: { products: [], loading: true, error: null } }
+
+▸ [NgRx] [Products] Load Success
+    Previous State: { products: { products: [], loading: true, error: null } }
+    Action: { type: '[Products] Load Success', products: [{...}, {...}] }
+    Next State: { products: { products: [{...}, {...}], loading: false, error: null } }
+```
+
+### 3. Debug Trong Console (Runtime)
+
+Khi app đang chạy, mở F12 Console và truy cập state trực tiếp:
+
+```javascript
+// Cách 1: Lấy Store từ Angular injector
+const store = ng.getComponent(document.querySelector('app-root'))
+  ?.constructor?.ɵfac?.()?.store;  // Không khuyến khích — dùng DevTools tốt hơn
+
+// Cách 2: Tạo debug helper trong app (KHUYẾN KHÍCH)
+```
+
+```typescript
+// debug.service.ts — service tiện ích debug (chỉ dev)
+import { Injectable, inject, isDevMode } from '@angular/core';
+import { Store } from '@ngrx/store';
+
+@Injectable({ providedIn: 'root' })
+export class DebugService {
+  private store = inject(Store);
+
+  constructor() {
+    if (isDevMode()) {
+      // Gán store lên window để truy cập từ Console
+      (window as any).__store = this.store;
+      (window as any).__getState = () => {
+        this.store.subscribe(state => console.log('📦 Full State:', state)).unsubscribe();
+      };
+      console.log('🔧 Debug: window.__getState() để xem state, window.__store để dispatch');
+    }
+  }
+}
+```
+
+```typescript
+// app.config.ts — inject DebugService để nó khởi tạo
+import { APP_INITIALIZER } from '@angular/core';
+import { DebugService } from './debug.service';
+
+providers: [
+  // ... store, effects, devtools
+  {
+    provide: APP_INITIALIZER,
+    useFactory: () => {
+      inject(DebugService); // Khởi tạo debug service
+      return () => {};
+    },
+    multi: true,
+  },
+]
+```
+
+**Dùng trong Console F12:**
+
+```javascript
+// Xem toàn bộ state
+__getState()
+// Output: 📦 Full State: { products: {...}, cart: {...}, user: {...} }
+
+// Subscribe theo dõi state thay đổi real-time
+__store.subscribe(s => console.log('State changed:', s))
+
+// Dispatch action thủ công từ Console
+__store.dispatch({ type: '[Products] Load' })
+
+// Select 1 slice cụ thể
+__store.select('products').subscribe(s => console.log('Products state:', s))
+```
+
+### 4. Debug Trong Component
+
+```typescript
+@Component({ ... })
+export class ProductListComponent {
+  private store = inject(Store);
+
+  // ✅ Debug: xem state trực tiếp trong component
+  ngOnInit() {
+    // Log mỗi khi products state thay đổi
+    this.store.select(selectProductState).subscribe(state => {
+      console.log('🏪 Product state:', state);
+    });
+
+    // Log toàn bộ state (tất cả slices)
+    this.store.subscribe(fullState => {
+      console.log('📦 Full app state:', fullState);
+    });
+
+    this.store.dispatch(loadProducts());
+  }
+}
+```
+
+### 5. State Freeze (Phát hiện mutation)
+
+```typescript
+// store/meta-reducers/freeze.ts
+// Freeze state để phát hiện mutation bất hợp pháp (sẽ throw error)
+import { ActionReducer, MetaReducer } from '@ngrx/store';
+
+export function stateFreezer(reducer: ActionReducer<any>): ActionReducer<any> {
+  return (state, action) => {
+    const nextState = reducer(state, action);
+    // Deep freeze state — nếu ai đó mutate sẽ throw TypeError
+    deepFreeze(nextState);
+    return nextState;
+  };
+}
+
+function deepFreeze(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  Object.freeze(obj);
+  Object.keys(obj).forEach(key => deepFreeze(obj[key]));
+  return obj;
+}
+
+// Hoặc dùng ngrx/store built-in (Angular 16+):
+import { provideStore } from '@ngrx/store';
+
+provideStore(reducers, {
+  runtimeChecks: {
+    strictStateImmutability: true,   // ✅ Throw error khi state bị mutate
+    strictActionImmutability: true,  // ✅ Throw error khi action bị mutate
+    strictStateSerializability: true, // Warn nếu state không serializable
+    strictActionSerializability: true, // Warn nếu action không serializable
+  },
+})
+```
+
+### 6. Tổng Hợp — Chọn Cách Debug Theo Tình Huống
+
+| Tình huống | Cách debug tốt nhất |
+|-----------|---------------------|
+| Xem **toàn bộ state** hiện tại | Redux DevTools → tab State |
+| Xem **state thay đổi gì** sau action | Redux DevTools → tab Diff |
+| **Time-travel** (quay về state cũ) | Redux DevTools → bấm vào action cũ |
+| Log **mọi action** ra console | Meta-reducer logger |
+| Debug **runtime** trong Console F12 | `window.__getState()` hoặc `__store.select(...)` |
+| Phát hiện **mutation** bất hợp pháp | `runtimeChecks: { strictStateImmutability: true }` |
+| **Test** state trong unit test | Gọi reducer trực tiếp: `reducer(state, action)` |
+| **Dispatch action thủ công** | Redux DevTools → tab Dispatch hoặc `__store.dispatch(...)` |
+| **Chia sẻ bug report** với team | Redux DevTools → Export state → gửi file JSON |
+
+### Setup Đầy Đủ — Copy & Paste
+
+```typescript
+// app.config.ts — setup hoàn chỉnh cho debug
+import { ApplicationConfig, isDevMode } from '@angular/core';
+import { provideStore } from '@ngrx/store';
+import { provideEffects } from '@ngrx/effects';
+import { provideStoreDevtools } from '@ngrx/store-devtools';
+import { reducers, metaReducers } from './store';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideStore(reducers, {
+      metaReducers,
+      runtimeChecks: {
+        strictStateImmutability: true,    // Phát hiện mutation
+        strictActionImmutability: true,
+        strictStateSerializability: true,
+        strictActionSerializability: true,
+        strictActionWithinNgZone: true,   // Action phải dispatch trong NgZone
+        strictActionTypeUniqueness: true, // Action type phải unique
+      },
+    }),
+    provideEffects([ProductEffects]),
+    // DevTools — chỉ trong dev
+    isDevMode()
+      ? provideStoreDevtools({
+          maxAge: 50,
+          logOnly: false,
+          autoPause: true,
+          connectInZone: true,
+        })
+      : [],
+  ],
+};
 ```
 
 ---
