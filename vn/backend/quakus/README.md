@@ -74,6 +74,23 @@ Chào mừng đến với bộ tài liệu luyện phỏng vấn Quarkus! Bộ t
    - ConfigMaps & Secrets
    - HPA & resource tuning
 
+### Modern & Master-Level
+
+12. **[Virtual Threads (Project Loom)](./12-Virtual-Threads.md)**
+   - Virtual Thread vs Platform Thread vs Reactive
+   - @RunOnVirtualThread trong Quarkus
+   - Pinning, ThreadLocal, ScopedValue
+   - Migration Guide (Blocking → VT, Reactive → VT)
+   - Performance Benchmarks
+
+13. **[Performance Tuning & Benchmarking](./13-Performance-Tuning.md)**
+   - JVM Tuning (Heap, GC, Metaspace)
+   - Connection Pool Sizing (HikariCP/Agroal)
+   - Hibernate / JPA Optimization (N+1, Batch, Indexing)
+   - Profiling (async-profiler, JFR, Flame Graph)
+   - Load Testing (wrk, k6, Gatling)
+   - Production Monitoring (Prometheus, Grafana)
+
 ## 🎯 Cách sử dụng
 
 1. **Bắt đầu với Fundamentals**: Nắm vững kiến trúc và core concepts
@@ -132,21 +149,45 @@ Mỗi file tài liệu bao gồm:
 ### Intermediate → Advanced
 5. Data Access với Panache
 6. Reactive Programming
-7. Native Image
-8. Advanced Topics
+7. Testing
+8. Native Image
 9. Build & Containerization
-10. Kubernetes & Cloud Native
+
+### Advanced → Master
+10. Advanced Topics (Security, Messaging, gRPC, GraphQL)
+11. Kubernetes & Cloud Native
+12. Virtual Threads (Java 21+ / Project Loom)
+13. Performance Tuning & Benchmarking
 
 ## ✅ Checklist trước Phỏng vấn
 
-- [ ] Nắm vững Quarkus Architecture
-- [ ] Hiểu Native Image và GraalVM
-- [ ] Biết cách sử dụng CDI
-- [ ] Hiểu Reactive Programming với Mutiny
-- [ ] Biết cách optimize performance
-- [ ] Có thể implement REST APIs
-- [ ] Hiểu Panache cho Data Access
-- [ ] Biết các best practices
+### Core
+- [ ] Quarkus Architecture (Build-time vs Runtime, ArC, Extensions)
+- [ ] RESTEasy Reactive (Smart Dispatching, Filters, Exception Mappers)
+- [ ] CDI (Scopes, Client Proxy, Qualifiers, Events, Interceptors, Decorators)
+- [ ] Panache (Active Record vs Repository, Projections, Transactions)
+
+### Reactive & Threading
+- [ ] Mutiny (Uni/Multi, Error handling, Combining, Threading)
+- [ ] Vert.x Event Loop (emitOn vs runSubscriptionOn, Context Propagation)
+- [ ] Virtual Threads (Pinning, Migration, VT vs Reactive vs Platform)
+
+### Data & Messaging
+- [ ] Hibernate (N+1, Batch, L2 cache, Locking, Multi-tenancy)
+- [ ] Kafka/AMQP (SmallRye Reactive Messaging, Dead Letter Queue)
+- [ ] Database Migration (Flyway/Liquibase)
+
+### Security
+- [ ] OIDC/JWT (Keycloak, SecurityIdentity, Token propagation)
+- [ ] Authorization (@RolesAllowed, RBAC, ABAC, Programmatic check)
+
+### Production
+- [ ] Native Image (GraalVM, Reflection, PGO, Troubleshooting)
+- [ ] Build & Container (Fast-jar, Layered builds, Dockerfile)
+- [ ] Kubernetes (Manifests, Probes, ConfigMap/Secret, HPA)
+- [ ] Performance Tuning (JVM, GC, Connection Pool, Profiling)
+- [ ] Observability (Metrics, Tracing, Health checks)
+- [ ] Testing (QuarkusTest, Dev Services, Contract Testing, Security Testing)
 
 ## 📞 Liên hệ
 
