@@ -1,71 +1,322 @@
-# Security & Cost Optimization
+# Security & Cost Optimization — Chi Tiết
 
-## IAM Best Practices
+## IAM (Identity and Access Management)
+
+### IAM Core Concepts
 
 ```
-1. Least Privilege: chỉ cấp quyền cần thiết
-2. No root access: dùng IAM users/roles
-3. MFA: bắt buộc cho tất cả users
-4. Roles > Users: cho services dùng IAM Roles (không hardcode credentials)
-5. Rotate keys: access keys rotate mỗi 90 ngày
+                    AWS Account (Root)
+                         │
+              ┌──────────┼──────────┐
+              │          │          │
+           IAM User   IAM Group  IAM Role
+           (person)  (team/dept) (service/app)
+              │          │          │
+              └──────────┼──────────┘
+                         │
+                    IAM Policy
+                    (permissions)
 ```
 
-### IAM Policy
+| Concept | Mô tả | Ví dụ |
+|---------|--------|-------|
+| **User** | Đại diện 1 người, có credentials | dev-alice, admin-bob |
+| **Group** | Nhóm users, gán policy cho cả nhóm | developers, admins, readonly |
+| **Role** | Assumed bởi service/user, temporary credentials | ec2-role, lambda-role, cross-account |
+| **Policy** | JSON document định nghĩa permissions | S3ReadOnly, DynamoDBFullAccess |
+
+### IAM Best Practices (12 Rules)
+
+```
+1.  KHÔNG dùng root account — tạo IAM users
+2.  MFA bắt buộc cho tất cả users (đặc biệt root)
+3.  Least Privilege — chỉ cấp quyền CẦN THIẾT
+4.  Roles > Access Keys — services dùng IAM Roles (không hardcode)
+5.  Rotate access keys mỗi 90 ngày
+6.  Groups > Individual — gán policy cho group, không user riêng lẻ
+7.  Password policy — min length, complexity, expiration
+8.  IAM Access Analyzer — phát hiện overly permissive policies
+9.  Conditions — restrict by IP, time, MFA, region
+10. Service Control Policies (SCP) — restrict entire AWS accounts
+11. Permission Boundaries — limit max permissions cho user/role
+12. Audit — CloudTrail logs mọi API call
+```
+
+### IAM Policy Examples
 
 ```json
+// 1. S3 access cho specific bucket + prefix
 {
     "Version": "2012-10-17",
     "Statement": [{
         "Effect": "Allow",
-        "Action": [
-            "s3:GetObject",
-            "s3:PutObject"
-        ],
-        "Resource": "arn:aws:s3:::my-bucket/*"
+        "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+        "Resource": "arn:aws:s3:::my-app-uploads/users/${aws:PrincipalTag/userId}/*",
+        "Condition": {
+            "StringEquals": {
+                "s3:x-amz-server-side-encryption": "aws:kms"
+            }
+        }
     }]
 }
 ```
 
+```json
+// 2. DynamoDB access cho specific table + actions
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Sid": "OrderTableAccess",
+        "Effect": "Allow",
+        "Action": [
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:Query"
+        ],
+        "Resource": [
+            "arn:aws:dynamodb:ap-southeast-1:123456789:table/Orders",
+            "arn:aws:dynamodb:ap-southeast-1:123456789:table/Orders/index/*"
+        ]
+    }]
+}
+```
+
+```json
+// 3. Deny all nếu không có MFA
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Sid": "DenyWithoutMFA",
+        "Effect": "Deny",
+        "Action": "*",
+        "Resource": "*",
+        "Condition": {
+            "BoolIfExists": { "aws:MultiFactorAuthPresent": "false" }
+        }
+    }]
+}
+```
+
+```json
+// 4. Restrict by IP (office network only)
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Deny",
+        "Action": "*",
+        "Resource": "*",
+        "Condition": {
+            "NotIpAddress": {
+                "aws:SourceIp": ["203.0.113.0/24", "198.51.100.0/24"]
+            }
+        }
+    }]
+}
+```
+
+### Cross-Account Access
+
+```
+Account A (App) cần truy cập S3 bucket ở Account B (Data):
+
+Account B: Tạo IAM Role "CrossAccountS3Role"
+  Trust policy: { "Principal": { "AWS": "arn:aws:iam::111111111:root" } }
+  Permission: S3ReadOnly cho bucket cụ thể
+
+Account A: App assume role
+  sts:AssumeRole → arn:aws:iam::222222222:role/CrossAccountS3Role
+  → Nhận temporary credentials → truy cập S3 bucket ở Account B
+```
+
+---
+
 ## Secrets Management
 
-```
-AWS Secrets Manager:
-  - Store DB passwords, API keys, tokens
-  - Auto-rotate secrets
-  - Access via IAM roles (no hardcoded credentials)
+### Secrets Manager vs Parameter Store
 
-AWS Systems Manager Parameter Store:
-  - Configuration values
-  - Free tier (standard parameters)
-  - Hierarchy: /prod/db/password, /dev/db/password
+| | Secrets Manager | Parameter Store |
+|---|----------------|-----------------|
+| **Cost** | $0.40/secret/tháng | Free (standard) |
+| **Rotation** | ✅ Auto-rotation (Lambda) | ❌ Manual |
+| **Cross-account** | ✅ Resource policy | ❌ |
+| **Encryption** | ✅ KMS mandatory | ✅ KMS optional |
+| **Size** | 64KB | 4KB (standard), 8KB (advanced) |
+| **Versioning** | ✅ | ✅ |
+| **Use case** | DB passwords, API keys, tokens | Config values, feature flags |
+
+### Secrets Manager — Auto Rotation
+
+```python
+# Lambda rotation function (auto-generated by AWS)
+# Mỗi 30 ngày:
+# 1. Create new password
+# 2. Update RDS password
+# 3. Update secret value
+# 4. Test new credentials
+# 5. Finalize: set new version as AWSCURRENT
+
+# Java: đọc secret từ Secrets Manager
+SecretsManagerClient client = SecretsManagerClient.create();
+GetSecretValueResponse response = client.getSecretValue(
+    GetSecretValueRequest.builder()
+        .secretId("prod/db-credentials")
+        .build()
+);
+String secret = response.secretString();
+// → {"username":"admin","password":"new-rotated-password","host":"mydb.xxx.rds.amazonaws.com"}
 ```
+
+### KMS (Key Management Service)
+
+```
+Encryption at rest:
+  S3:             SSE-S3 (default), SSE-KMS (audit trail), SSE-C (customer key)
+  RDS:            KMS encryption enabled
+  EBS:            KMS encryption per volume
+  DynamoDB:       AWS owned key (free) or CMK
+  Lambda env vars: KMS encrypted
+
+Encryption in transit:
+  ALB → EC2:      TLS/SSL certificate (ACM)
+  Service ↔ Service: mTLS (App Mesh), VPC endpoints
+  Client → API:    HTTPS (ACM certificate)
+
+Key types:
+  AWS managed key: AWS tạo, rotate tự động, free
+  Customer managed key (CMK): bạn tạo, control policy, $1/tháng
+  Data key: CMK → generate data key → encrypt data (envelope encryption)
+```
+
+---
 
 ## Cost Optimization
 
-| Strategy | Savings | Khi nào dùng |
-|---------|---------|-------------|
-| **Reserved Instances** | 40-70% | Steady-state workloads |
-| **Spot Instances** | 60-90% | Stateless, fault-tolerant |
-| **Savings Plans** | 20-40% | Commit to $/hr for compute |
-| **Right-sizing** | 10-40% | Over-provisioned resources |
-| **Auto-scaling** | Variable | Traffic varies by time |
-| **S3 Lifecycle** | 50-80% | Infrequent access data |
-
-### Cost Monitoring
+### Cost Breakdown Typical Web App
 
 ```
-AWS Cost Explorer: visualize spending trends
-AWS Budgets: set budget alerts
-Trusted Advisor: recommendations
-Tags: tag resources → track cost per team/project/env
+Ví dụ: E-commerce app, 5M page views/tháng
+
+  ECS Fargate (3 tasks, 0.5 vCPU, 1GB):    $45/tháng
+  RDS Aurora (db.r5.large, Multi-AZ):       $400/tháng  ← Đắt nhất!
+  ElastiCache (cache.r5.large):             $200/tháng
+  ALB:                                       $30/tháng
+  S3 (100GB):                                $3/tháng
+  CloudFront (500GB transfer):               $50/tháng
+  NAT Gateway (50GB):                        $50/tháng
+  Route 53:                                  $1/tháng
+  CloudWatch:                                $15/tháng
+  Secrets Manager (5 secrets):               $2/tháng
+  ─────────────────────────────────────────────────────
+  Total:                                    ~$800/tháng
+  
+  Với Reserved (1 năm): ~$500/tháng (giảm 37%)
 ```
 
-## Well-Architected Framework (5 Pillars)
+### Optimization Strategies
 
-| Pillar | Focus |
-|--------|-------|
-| **Operational Excellence** | Automation, monitoring, incident response |
-| **Security** | IAM, encryption, compliance |
-| **Reliability** | HA, fault tolerance, disaster recovery |
-| **Performance Efficiency** | Right resource type/size, scaling |
-| **Cost Optimization** | Pay for what you use, right-sizing |
+| Strategy | Savings | Effort | Áp dụng |
+|---------|---------|--------|---------|
+| **Right-sizing** | 10-40% | Low | CloudWatch CPU/memory → downsize over-provisioned |
+| **Reserved Instances** | 40-72% | Medium | Stable workloads (RDS, ElastiCache, EC2) |
+| **Savings Plans** | 20-40% | Low | Commit $/giờ, linh hoạt instance type |
+| **Spot Instances** | 60-90% | Medium | Stateless workers, batch, CI/CD |
+| **Fargate Spot** | 70% | Low | Non-critical ECS tasks |
+| **S3 Lifecycle** | 50-80% | Low | Transition old data → IA → Glacier |
+| **NAT Gateway** | 50-70% | Medium | VPC endpoints thay NAT cho S3/DynamoDB |
+| **Aurora Serverless** | Variable | Low | Dev/test, variable traffic |
+| **Graviton (ARM)** | 20% | Low | t4g/m6g thay t3/m5, Lambda ARM |
+
+### VPC Endpoints — Giảm NAT Gateway Cost
+
+```
+Không có VPC Endpoint:
+  ECS (private) → NAT Gateway → Internet → S3
+  Cost: $0.045/GB qua NAT Gateway
+
+Có VPC Endpoint (Gateway):
+  ECS (private) → VPC Endpoint → S3
+  Cost: FREE!
+
+VPC Endpoints nên tạo:
+  Gateway Endpoint: S3, DynamoDB (FREE)
+  Interface Endpoint: SQS, SNS, Secrets Manager, ECR, CloudWatch Logs
+    ($0.01/giờ + $0.01/GB, nhưng rẻ hơn NAT cho traffic lớn)
+```
+
+### Cost Monitoring Setup
+
+```
+1. AWS Cost Explorer:
+   - Visualize chi phí theo service/tag/time
+   - Forecast chi phí tháng tới
+   - Identify underutilized resources
+
+2. AWS Budgets:
+   - Set budget alert: "Notify khi chi phí > $800"
+   - Cost budget, usage budget, reservation budget
+   - Action: auto-stop EC2, notify SNS
+
+3. Cost Allocation Tags:
+   Tag mọi resource:
+     Environment: prod / staging / dev
+     Team: backend / frontend / data
+     Project: project-x / project-y
+     Owner: alice@example.com
+   
+   → Track cost per team, project, environment
+
+4. Trusted Advisor:
+   - Idle EC2 instances
+   - Underutilized EBS volumes
+   - Unassociated Elastic IPs
+   - Reserved Instance utilization
+```
+
+---
+
+## Well-Architected Framework (6 Pillars)
+
+| Pillar | Key Questions | AWS Tools |
+|--------|-------------|-----------|
+| **Operational Excellence** | Làm sao deploy an toàn? Detect issues nhanh? | CodePipeline, CloudWatch, X-Ray, Systems Manager |
+| **Security** | Ai có quyền gì? Data encrypted? | IAM, KMS, GuardDuty, Security Hub, WAF |
+| **Reliability** | System recover từ failure? Scale under load? | Multi-AZ, Auto Scaling, Route 53, Backup |
+| **Performance Efficiency** | Dùng đúng resource type? Bottleneck ở đâu? | CloudWatch, X-Ray, right-sizing |
+| **Cost Optimization** | Trả đúng cho cái đang dùng? | Cost Explorer, Budgets, Reserved, Spot |
+| **Sustainability** | Giảm environmental impact? | Graviton (ARM), Serverless, right-sizing |
+
+### Well-Architected Review Checklist
+
+```
+Security:
+  ✅ MFA enabled cho tất cả users
+  ✅ IAM Roles cho services (không access keys)
+  ✅ Encryption at rest + in transit
+  ✅ Security Groups restrict traffic
+  ✅ VPC with private subnets cho app + DB
+  ✅ CloudTrail enabled (audit log)
+  ✅ GuardDuty enabled (threat detection)
+
+Reliability:
+  ✅ Multi-AZ deployment (ECS, RDS, ElastiCache)
+  ✅ Auto Scaling configured
+  ✅ Health checks (ALB, ECS, Route 53)
+  ✅ Automated backups (RDS, DynamoDB, S3)
+  ✅ Disaster Recovery plan tested
+
+Performance:
+  ✅ CloudFront cho static content
+  ✅ ElastiCache cho frequently accessed data
+  ✅ RDS read replicas cho read-heavy workloads
+  ✅ Right-sized instances (not over-provisioned)
+
+Cost:
+  ✅ Reserved Instances cho steady-state
+  ✅ S3 Lifecycle policies
+  ✅ VPC Endpoints cho S3/DynamoDB
+  ✅ Cost allocation tags
+  ✅ Budget alerts configured
+```
+
+**Quay lại:** [README.md](./README.md)
