@@ -471,6 +471,211 @@ export class ChatComponent {
 
 Dự án mới nên dùng **standalone**; cấu hình mặc định của `ng new` đã là standalone.
 
+### Tại Sao Angular Hướng Tới Standalone? (Từ Angular 17)
+
+#### Vấn đề của NgModule
+
+```typescript
+// ❌ NgModule: phải khai báo MỌI component/pipe/directive
+@NgModule({
+  declarations: [
+    ProductListComponent,      // Khai báo ở đây...
+    ProductCardComponent,
+    ProductFilterPipe,
+    HighlightDirective,
+  ],
+  imports: [
+    CommonModule,              // ...import module Angular...
+    FormsModule,
+    HttpClientModule,
+    SharedModule,              // ...import shared module...
+    RouterModule.forChild(routes),
+  ],
+  exports: [ProductListComponent],
+  providers: [ProductService],
+})
+export class ProductModule { }     // Class RỖNG, chỉ để config!
+```
+
+**5 vấn đề chính:**
+
+| # | Vấn đề | Giải thích |
+|---|--------|-----------|
+| 1 | **Boilerplate** | Mỗi feature cần tạo 1 NgModule class rỗng, khai báo dài dòng |
+| 2 | **Khó hiểu cho người mới** | declarations vs imports vs exports vs providers — confusing |
+| 3 | **Scope không rõ ràng** | Component A dùng Pipe B — Pipe B phải khai báo trong cùng module hoặc import module chứa nó. Developer không biết dependency từ đâu |
+| 4 | **Tree-shaking kém** | Import `SharedModule` → 50 components vào bundle dù chỉ dùng 1 |
+| 5 | **Lazy loading phức tạp** | Phải tạo module riêng + `loadChildren` → nhiều file chỉ để lazy load |
+
+#### Standalone Giải Quyết Thế Nào
+
+```typescript
+// ✅ Standalone: component TỰ khai báo dependency
+@Component({
+  selector: 'app-product-list',
+  standalone: true,              // Tự đứng, không cần NgModule
+  imports: [                     // Import TRỰC TIẾP những gì CẦN
+    ProductCardComponent,        // Component khác
+    ProductFilterPipe,           // Pipe
+    RouterLink,                  // Chỉ RouterLink, không cả RouterModule
+  ],
+  template: `
+    @for (p of products; track p.id) {
+      <app-product-card [product]="p" />
+    }
+  `,
+})
+export class ProductListComponent { }
+// Không cần NgModule wrapper!
+```
+
+| Vấn đề NgModule | Standalone giải quyết |
+|-----------------|----------------------|
+| Boilerplate module class | Không cần tạo module class |
+| Khó hiểu scope | Component tự khai báo imports → nhìn là biết dependency |
+| Tree-shaking kém | Import component cụ thể → chỉ bundle cái thực sự dùng |
+| Lazy loading phức tạp | `loadComponent` trực tiếp, không cần module |
+
+### Timeline — Lộ Trình Chuyển Sang Standalone
+
+```
+Angular 14 (06/2022):  Standalone ra mắt — developer preview, opt-in
+                        → standalone: true trong @Component
+
+Angular 15 (11/2022):  Standalone APIs stable
+                        → provideRouter(), provideHttpClient()
+                        → Thay thế RouterModule.forRoot(), HttpClientModule
+
+Angular 16 (05/2023):  Standalone là "recommended"
+                        → Signals ra mắt (developer preview)
+                        → DestroyRef, takeUntilDestroyed
+
+Angular 17 (11/2023):  ★ STANDALONE LÀ DEFAULT
+                        → ng new tạo project KHÔNG CÓ app.module.ts
+                        → New control flow: @if, @for, @switch
+                        → ng generate tạo standalone component mặc định
+
+Angular 18 (05/2024):  Zoneless experimental
+                        → standalone: true là mặc định trong schematic
+
+Angular 19 (11/2024):  standalone: true là NGẦM ĐỊNH
+                        → Không cần viết standalone: true nữa!
+                        → NgModule chỉ còn dùng cho legacy code
+```
+
+### So Sánh Code Cụ Thể
+
+#### Bootstrap App
+
+```typescript
+// ❌ CŨ (NgModule style)
+@NgModule({
+  declarations: [AppComponent],
+  imports: [BrowserModule, AppRoutingModule, HttpClientModule],
+  bootstrap: [AppComponent],
+})
+export class AppModule { }
+
+// main.ts
+platformBrowserDynamic().bootstrapModule(AppModule);
+```
+
+```typescript
+// ✅ MỚI (Standalone style)
+// app.config.ts — chỉ config, không cần class
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(routes),           // Thay RouterModule.forRoot()
+    provideHttpClient(),             // Thay HttpClientModule
+    provideAnimations(),             // Thay BrowserAnimationsModule
+  ],
+};
+
+// main.ts
+bootstrapApplication(AppComponent, appConfig);
+```
+
+#### Lazy Loading
+
+```typescript
+// ❌ CŨ: phải tạo NgModule RIÊNG chỉ để lazy load
+@NgModule({
+  declarations: [ProductListComponent, ProductDetailComponent],
+  imports: [CommonModule, RouterModule.forChild(routes)],
+})
+export class ProductModule { }
+
+// routing
+{ path: 'products', loadChildren: () =>
+    import('./product/product.module').then(m => m.ProductModule) }
+```
+
+```typescript
+// ✅ MỚI: lazy load TRỰC TIẾP component, KHÔNG CẦN module
+export const routes: Routes = [
+  {
+    path: 'products',
+    loadComponent: () => import('./product/product-list.component')
+      .then(m => m.ProductListComponent),
+  },
+  {
+    path: 'admin',
+    loadChildren: () => import('./admin/admin.routes')
+      .then(m => m.adminRoutes),  // Lazy load nhóm routes
+    providers: [AdminService],     // Scoped providers
+  },
+];
+```
+
+#### Template — @if/@for thay CommonModule
+
+```html
+<!-- ❌ CŨ: phải import CommonModule để dùng *ngIf, *ngFor -->
+<div *ngIf="loading">Loading...</div>
+<div *ngFor="let p of products; trackBy: trackById">{{ p.name }}</div>
+
+<!-- ✅ MỚI (Angular 17+): built-in syntax, KHÔNG CẦN import -->
+@if (loading) {
+  <div>Loading...</div>
+} @else {
+  @for (p of products; track p.id) {
+    <app-product-card [product]="p" />
+  } @empty {
+    <div>Không có sản phẩm</div>
+  }
+}
+```
+
+### Migration — Chuyển Từ NgModule Sang Standalone
+
+```bash
+# Angular CLI tự động migrate (3 bước)
+ng generate @angular/core:standalone
+
+# Bước 1: Convert components/directives/pipes to standalone
+# Bước 2: Remove unnecessary NgModule classes
+# Bước 3: Bootstrap with standalone APIs
+```
+
+### Khi Nào Vẫn Dùng NgModule?
+
+| Dùng Standalone | Vẫn dùng NgModule |
+|----------------|-------------------|
+| Dự án mới (Angular 17+) | Bảo trì dự án cũ chưa migrate |
+| Tất cả components, pipes, directives | Third-party library chưa hỗ trợ standalone |
+| Lazy loading (loadComponent) | Cần tương thích Angular < 14 |
+
+### Câu Hỏi Phỏng Vấn
+
+**Q: Tại sao Angular bỏ NgModule, chuyển sang standalone?**
+> NgModule tạo quá nhiều boilerplate, scope dependency không rõ ràng, tree-shaking kém (import SharedModule → bundle 50 components dù chỉ dùng 1), lazy loading phải tạo module riêng. Standalone cho phép component tự khai báo dependency → đơn giản, tree-shake tốt, dễ học. Angular 17 đặt standalone làm default, Angular 19 ngầm hiểu `standalone: true`.
+
+**Q: Standalone có thay đổi DI system không?**
+> Không. DI vẫn hoạt động giống hệt — `providedIn: 'root'` cho singleton, `providers` trong component/route cho scoped. Chỉ thay đổi cách **khai báo** component, không thay đổi cách **inject**.
+
+**Q: Project cũ có bắt buộc đổi sang standalone không?**
+> Không. NgModule vẫn hoạt động. Nhưng khuyến khích migrate dần bằng `ng generate @angular/core:standalone`. Standalone và NgModule có thể **chung sống** trong cùng project — migrate từng phần.
+
 ---
 
 ## Câu hỏi thường gặp
