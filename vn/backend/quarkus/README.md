@@ -91,6 +91,15 @@ Chào mừng đến với bộ tài liệu luyện phỏng vấn Quarkus! Bộ t
    - Load Testing (wrk, k6, Gatling)
    - Production Monitoring (Prometheus, Grafana)
 
+14. **[Common Configurations](./14-Common-Configurations.md)**
+   - Datasource, Hibernate, Redis, MongoDB
+   - Kafka, RabbitMQ, gRPC, WebSocket
+   - OIDC, JWT, CORS, SSL
+   - Logging, Health, Metrics, OpenAPI
+   - Cache, Scheduler, Mailer, Flyway
+   - Kubernetes, Profiles, Environment Variables
+   - Production template `application.properties`
+
 ## 🎯 Cách sử dụng
 
 1. **Bắt đầu với Fundamentals**: Nắm vững kiến trúc và core concepts
