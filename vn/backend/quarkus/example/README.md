@@ -17,4 +17,4 @@ mvn package
 java -jar target/quarkus-app/quarkus-run.jar
 ```
 
-Đọc kèm [../README.md](../README.md) và các file trong backend/quakus.
+Đọc kèm [../README.md](../README.md) và các file trong backend/quarkus.

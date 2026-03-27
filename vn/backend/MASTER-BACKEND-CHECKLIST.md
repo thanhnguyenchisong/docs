@@ -18,7 +18,7 @@ Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java
 | **microservices** | Communication, Discovery, Gateway, Distributed TX, Patterns, Observability, Security, DevOps | Kiến trúc microservices |
 | **sso** | SSO, SAML, OAuth2, OIDC, JWT, Security | Auth/AuthZ |
 | **maven** | POM, lifecycle, dependencies, multi-module | Build, dependency |
-| **quakus** | Quarkus: REST, DI, reactive, native image | Alternative stack |
+| **quarkus** | Quarkus: REST, DI, reactive, native image, Virtual Threads | Alternative stack |
 | **redis** | Redis: data structures, persistence, cache patterns, Spring Data Redis, Cluster, Sentinel | Cache, session, rate limit, real-time |
 | **mongodb** | MongoDB: document model, queries, index, aggregation, Spring Data, replica set, sharding | NoSQL, document DB |
 | **sql** | SQL: DDL/DML, SELECT, JOIN, subquery, CTE, aggregation, optimization, index | Truy vấn SQL, tối ưu |
@@ -189,7 +189,7 @@ Sau khi **học thuộc hết** nội dung trong toàn bộ folder backend (Java
 
 ## 4. Cách dùng checklist
 
-1. **Học đủ** toàn bộ tài liệu trong từng folder (java, jpa, spring-jpa, relational-database, postgresSQL, sql, kafka, rabbitMQ, redis, mongodb, jfrog, harbor, microservices, sso, maven, quakus).
+1. **Học đủ** toàn bộ tài liệu trong từng folder (java, jpa, spring-jpa, relational-database, postgresSQL, sql, kafka, rabbitMQ, redis, mongodb, jfrog, harbor, microservices, sso, maven, quarkus).
 2. **Tự hỏi từng mục** trong checklist; nếu chưa trả lời được thì quay lại bài tương ứng (xem bảng mục 1).
 3. **Thực hành**: viết code (Spring Boot, JPA, REST, Kafka consumer/producer), thiết kế schema, vẽ kiến trúc microservices.
 4. **Ôn System Design**: đọc thêm sách/blog (Designing Data-Intensive Applications, system design interview) để bổ sung mục 2 “System Design & Scalability”.
