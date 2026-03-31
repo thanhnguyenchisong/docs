@@ -1,6 +1,6 @@
-# Tài liệu Frontend — Angular, ReactJS, React+TypeScript & Web
+# Tài liệu Frontend — Angular, ReactJS, React+TypeScript, JavaScript & Web
 
-Bộ tài liệu frontend từ **zero đến master** bao gồm ba nền tảng framework/library: **Angular** (23 bài), **ReactJS** (28 bài), **React + TypeScript** (8 bài), cùng với **Web fundamentals** (10 bài CSS/SCSS/Responsive/A11y/Performance/Security).
+Bộ tài liệu frontend từ **zero đến master** bao gồm: **JavaScript Master**, **AngularJS (1.x) Master**, **Angular** (23 bài), **ReactJS** (28 bài), **React + TypeScript** (8 bài), cùng với **Web fundamentals** (10 bài CSS/SCSS/Responsive/A11y/Performance/Security).
 
 ---
 
@@ -49,6 +49,15 @@ Phần này giúp bạn **chưa từng làm web** hoặc **mới chuyển sang f
 ---
 
 ## 📚 Mục lục
+
+### 📜 JavaScript & AngularJS Master
+
+| File | Nội dung |
+|------|----------|
+| [**JavaScript Master**](./javascript-master.md) | 🔥 Engine, Types, Closures, Prototypes, Async, ES6+, DOM, Patterns, Performance, Interview (16 sections) |
+| [**AngularJS (1.x) Master**](./angularjs-master.md) | 🔧 Modules, Controllers, $scope, Directives, Services, Routing, Forms, Digest Cycle, Custom Directives, Components, ServiceNow, Interview (18 sections) |
+
+---
 
 ### 🌐 Web Fundamentals (10 bài)
 
