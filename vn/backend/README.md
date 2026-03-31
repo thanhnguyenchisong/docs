@@ -41,6 +41,7 @@ Tài liệu luyện phỏng vấn và tham khảo cho lập trình backend: Java
 | [**elasticsearch**](./elasticsearch/) | Elasticsearch: Full-text search, Query DSL, Aggregations, Spring Data (3 bài) |
 | [**grpc**](./grpc/) | gRPC: Protobuf, Streaming, Spring Boot integration (3 bài) |
 | [**aws-cloud**](./aws-cloud/) | ☁️ **AWS/Cloud**: EC2, S3, RDS, Lambda, EKS, Architecture Patterns, Security (5 bài) |
+| [**AI**](./AI/) | 🤖 **AI**: ML Fundamentals, Deep Learning, NLP, Transformer, LLMs, Prompt Engineering, RAG, Agentic AI, Generative AI, Computer Vision, Vector DB, Fine-tuning, MLOps, Safety, Interview (15 bài) |
 
 ## Lộ trình gợi ý
 
@@ -61,6 +62,7 @@ Tài liệu luyện phỏng vấn và tham khảo cho lập trình backend: Java
 - **Software Engineering**: [software-engineering](./software-engineering/) — Code Review, Tech Debt, ADR, Leadership
 - **API alternatives**: [graphql](./graphql/) + [grpc](./grpc/) + [elasticsearch](./elasticsearch/)
 - **Cloud**: [aws-cloud](./aws-cloud/) — AWS core services, EKS, architecture patterns
+- **AI**: [AI](./AI/) — 🤖 ML, Deep Learning, LLMs, RAG, Agents, Fine-tuning, MLOps (15 bài chuyên sâu)
 - **Master**: Học hết các folder trên → làm **[MASTER-BACKEND-CHECKLIST.md](./MASTER-BACKEND-CHECKLIST.md)** để tự kiểm tra và ôn system design/scalability.
 
 Đọc README trong từng folder để xem mục lục chi tiết và bài tập.

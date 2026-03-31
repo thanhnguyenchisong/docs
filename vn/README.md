@@ -38,7 +38,10 @@ docs/vn/
 │   ├── harbor/                    ← Harbor container registry (5 bài)
 │   ├── jfrog/                     ← JFrog Artifactory (5 bài)
 │   ├── sso/                       ← SSO, OAuth2, OIDC, JWT (6 bài)
-│   └── high-scale-system/         ← 🔥 Xử lý 5-10 triệu request (10 bài)
+│   ├── high-scale-system/         ← 🔥 Xử lý 5-10 triệu request (10 bài)
+│   ├── servicenow/                ← 🔧 ServiceNow IT Professional (15 bài)
+│   ├── AI/                        ← 🤖 AI từ zero đến production (15 bài)
+│   └── ai-company-agent/          ← 🏢 AI Multi-Agent Company System (9 bài)
 └── devops/
     ├── README.md
     ├── MASTER-DEVOPS-CHECKLIST.md
@@ -146,6 +149,9 @@ Tài liệu luyện phỏng vấn và tham khảo cho lập trình backend: Java
 | [**backend/elasticsearch**](./backend/elasticsearch/) | Elasticsearch: Full-text search, Query DSL, Spring Data (3 bài) |
 | [**backend/grpc**](./backend/grpc/) | gRPC: Protobuf, Streaming, Spring Boot (3 bài) |
 | [**backend/aws-cloud**](./backend/aws-cloud/) | ☁️ AWS: EC2, S3, RDS, Lambda, EKS, Architecture Patterns (5 bài) |
+| [**backend/servicenow**](./backend/servicenow/) | 🔧 **ServiceNow**: Platform, ITSM, CMDB, Scripting, JavaScript ES5, AngularJS, Flow Designer, ITOM, Integration, Certification (17 bài) |
+| [**backend/AI**](./backend/AI/) | 🤖 **AI**: ML Fundamentals, Deep Learning, NLP, Transformer, LLMs, Prompt Engineering, RAG, Agentic AI, Generative AI, Computer Vision, Vector DB, Fine-tuning, MLOps, Safety, Interview (15 bài) |
+| [**backend/ai-company-agent**](./backend/ai-company-agent/) | 🏢 **AI Company Agent**: Multi-Agent Theory, Architecture Patterns, Communication, LangGraph, CrewAI, Memory/RAG, Company Blueprint, Deployment (9 bài) |
 
 → Xem [backend/README.md](./backend/README.md) để có mục lục chi tiết và lộ trình đọc.
 → Xem [**MASTER-BACKEND-CHECKLIST.md**](./backend/MASTER-BACKEND-CHECKLIST.md) — checklist phỏng vấn master backend.
