@@ -15,7 +15,7 @@
 ---
 
 ## 1. ServiceNow là gì?
-
+##### ServiceNow = Nền tảng giúp doanh nghiệp tạo ra các ứng dụng và portal quản lý mà KHÔNG phải xây dựng web từ đầu.
 ### 1.1 Tổng quan
 
 **ServiceNow** là một nền tảng **cloud-based** (Platform-as-a-Service — PaaS) cung cấp giải pháp tự động hóa quy trình công việc cho doanh nghiệp. Được thiết kế như một **Single System of Record**, ServiceNow kết nối con người, quy trình, và hệ thống vào một nền tảng duy nhất.
