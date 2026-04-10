@@ -1,0 +1,17 @@
+{
+  "name": "servicenow",
+  "version": "1.0.0",
+  "description": "Chào mừng đến với bộ tài liệu học ServiceNow! Bộ tài liệu này được thiết kế để giúp bạn trở thành **IT Professional** cho dự án ServiceNow, bao gồm từ kiến thức nền tảng đến chuyên sâu.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vitalets/google-translate-api": "^9.2.1",
+    "bing-translate-api": "^4.2.0",
+    "cheerio": "^1.2.0"
+  }
+}

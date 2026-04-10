@@ -1,0 +1,362 @@
+/*-------------------------------------------------
+   Variables for font-size, line-height, tracking
+---------------------------------------------------*/
+@media print {
+  /*showing images and graphics as per page*/
+  * {
+    -webkit-print-color-adjust: exact;
+    /*Chrome, Safari */
+    color-adjust: exact !important;
+    /*Firefox*/ }
+  @page {
+    size: auto;
+    margin: 1.3cm 1.9cm 1.4cm 2.54cm; }
+  /*image related styles*/
+  img {
+    float: none !important; }
+    img.img-responsive {
+      display: block;
+      page-break-before: auto;
+      page-break-after: auto;
+      /* 'always,' 'avoid,' 'left,' 'inherit,' or 'right' */
+      padding: 1px 0;
+      margin-top: 0px;
+      margin-bottom: 0px;
+      float: unset;
+      border: 1px solid #ffffff; }
+    img.icon {
+      float: none;
+      margin: 0px; }
+  /* SECTION 1: Set default width, margin, float, and
+     background. This prevents elements from extending
+     beyond the edge of the printed page, and prevents
+     unnecessary background images from printing */
+  html {
+    background: #fff;
+    width: auto;
+    height: auto;
+    overflow: visible; }
+  body {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 34px;
+    color: #000 !important;
+    background: none;
+    font-size: 20px; }
+  /* SECTION 2: Remove any elements not needed in print.
+     This would include navigation, ads, sidebars, etc. */
+  footer {
+    display: none !important; }
+  .img-wrap {
+    page-break-inside: avoid !important; }
+  /* displaying the video url */
+  div.section p.p div {
+    text-decoration: underline; }
+  /* hiding the embedded youtube video iframe */
+  iframe[src*="youtube"] {
+    display: none; }
+  /* Headings */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: black;
+    display: block;
+    page-break-after: avoid; }
+  li,
+  p {
+    border: 1px solid white; }
+  ul {
+    line-height: normal; }
+  p {
+    orphans: 3;
+    widows: 3; }
+  code {
+    font: 12pt Courier, monospace; }
+  blockquote {
+    margin: 1.2em;
+    padding: 1em;
+    font-size: 12pt; }
+  hr {
+    background-color: #ccc; }
+  /* Images */
+  img {
+    float: left;
+    margin: 1em 1.5em 1.5em 0em;
+    max-width: 100% !important; }
+  a img {
+    border: none; }
+  /* Links */
+  a:link,
+  a:visited {
+    background: transparent;
+    font-weight: 200;
+    text-decoration: underline;
+    color: black; }
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 90%;
+    page-break-inside: avoid; }
+  abbr[title]:after {
+    content: " (" attr(title) ")"; }
+  /* Don't show linked images  */
+  a[href^="http://"] {
+    color: #000; }
+  a[href$=".jpg"]:after,
+  a[href$=".jpeg"]:after,
+  a[href$=".gif"]:after,
+  a[href$=".png"]:after {
+    content: " (" attr(href) ") ";
+    display: none; }
+  /* Don't show links that are fragment identifiers, or use the `javascript:` pseudo protocol .. taken from html5boilerplate */
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: ""; }
+  /* Table */
+  table {
+    margin: 1px;
+    text-align: left;
+    page-break-inside: avoid; }
+  th {
+    border-bottom: 1px solid #333;
+    font-weight: bold; }
+  td {
+    border-bottom: 1px solid #333; }
+  th,
+  td {
+    padding: 4px 10px 4px 0;
+    page-break-inside: avoid; }
+  tfoot {
+    font-style: italic; }
+  caption {
+    background: #fff;
+    margin-bottom: 2em;
+    text-align: left; }
+  thead {
+    display: table-header-group;
+    page-break-inside: avoid; }
+  img,
+  tr,
+  pre {
+    page-break-inside: avoid; } }
+
+/* styles for print preview page*/
+header {
+  border-bottom: 2px solid #333333;
+  padding-bottom: 15px; }
+  header .module-title {
+    color: #333333;
+    font-size: 38px;
+    font-family: "Source Sans Pro", sans-serif;
+    font-weight: bold;
+    letter-spacing: 0px;
+    line-height: 20px; }
+  header .parent-title {
+    color: #333333;
+    font-size: 38px;
+    font-family: "Gilroy-Bold", sans-serif;
+    font-weight: bold;
+    letter-spacing: 0px;
+    line-height: 42px;
+    margin-top: 10px;
+    margin-bottom: 0; }
+  header .parent-description {
+    color: #333333;
+    font-size: 18px;
+    font-family: "Source Sans Pro", sans-serif;
+    font-weight: normal;
+    letter-spacing: 0px;
+    line-height: 26px; }
+
+.content-text {
+  color: #333333;
+  font-family: "Source Sans Pro", sans-serif;
+  font-weight: normal;
+  letter-spacing: 0px;
+  line-height: 34px;
+  font-size: 20px; }
+
+.print-title {
+  display: none; }
+
+.guide-version,
+.learning-plan-version,
+.course-version,
+.api-version {
+  text-transform: capitalize;
+  color: #333333;
+  font-size: 13px;
+  font-family: "Source Sans Pro", sans-serif;
+  font-weight: bold;
+  letter-spacing: 0;
+  line-height: 20px; }
+
+.api-module {
+  margin: 20px; }
+  .api-module h1, .api-module h2, .api-module h3, .api-module h4 {
+    font-family: "Gilroy-Regular", sans-serif;
+    font-weight: 400;
+    line-height: 1.5; }
+  .api-module h2 {
+    margin-bottom: 0; }
+  .api-module .content-text {
+    line-height: 1.5; }
+    .api-module .content-text .api-blurb {
+      background: #dee1f3;
+      border-radius: 0.1875rem;
+      padding: 2rem 2.5rem;
+      width: auto;
+      margin-top: 20px;
+      margin-bottom: 2rem;
+      line-height: 1.5; }
+      .api-module .content-text .api-blurb p {
+        border: 0; }
+    .api-module .content-text .api-methods {
+      margin-bottom: 75px; }
+    .api-module .content-text .api-table-wrapper {
+      margin-bottom: 2.5rem;
+      margin-top: 2.5rem; }
+    .api-module .content-text .api-table-type {
+      font-size: 1rem; }
+    .api-module .content-text .api-example-label {
+      font-family: "Gilroy-Regular", sans-serif;
+      font-weight: 400; }
+    .api-module .content-text .api-example {
+      margin-bottom: 20px; }
+      .api-module .content-text .api-example-type {
+        text-transform: capitalize;
+        font-weight: bold; }
+      .api-module .content-text .api-example pre {
+        font-size: 0.75rem; }
+    .api-module .content-text table {
+      width: 95%;
+      border-collapse: collapse;
+      margin-bottom: 20px; }
+      .api-module .content-text table tr {
+        border-bottom: 1px solid;
+        padding: 2px; }
+        .api-module .content-text table tr th {
+          text-align: left;
+          padding: 1rem 0.75rem;
+          font-family: "Gilroy-Regular", sans-serif;
+          background-color: #bec3e7; }
+          .api-module .content-text table tr th:first-child {
+            word-break: break-all;
+            width: 33%;
+            min-width: 160px; }
+        .api-module .content-text table tr td {
+          padding: 1rem 0.75rem; }
+          .api-module .content-text table tr td:first-child {
+            word-break: break-all;
+            width: 33%;
+            min-width: 160px; }
+
+.guide-category,
+.learning-plan-modules-count,
+.course-modules-count,
+.lp-module-list-heading,
+.course-module-list-heading,
+.lp-module-title,
+.lp-content-type,
+.course-content-type,
+.course-module-title {
+  text-transform: uppercase;
+  margin-top: 10px;
+  color: #333333;
+  font-size: 12px;
+  font-family: "Gilroy-Bold", sans-serif;
+  font-weight: bold;
+  letter-spacing: 1.2px;
+  line-height: 12px; }
+
+.learning-plan-modules-count,
+.course-modules-count {
+  margin: 10px 0 10px 0; }
+
+h2 {
+  color: #333333;
+  font-size: 28px;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0px;
+  line-height: 32px; }
+
+h3,
+h4,
+h5,
+h6 {
+  color: #333333;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0px;
+  line-height: 28px; }
+
+img {
+  margin: 1em 1.5em 1.5em 0;
+  max-width: 975px;
+  max-height: 340px; }
+
+img[class="icon"] {
+  margin: 1em 0 0 0; }
+
+pre {
+  background-color: #333333;
+  color: white;
+  padding: 20px; }
+
+pre code {
+  background-color: #333333;
+  border: none; }
+
+code {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  background-color: #e8e8e9;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #d0d2d3;
+  -o-border-image: none;
+     border-image: none;
+  -o-border-image: initial;
+     border-image: initial;
+  border-radius: 0.25rem; }
+
+table thead {
+  background-color: #bec3e7;
+  border-bottom: 1px solid #5c6ac4; }
+
+@media screen {
+  .guide-module {
+    margin: 0.63cm 1.9cm 0.63cm 2.54cm; }
+  div.section p.p div {
+    display: none; } }
+
+.outputmsg_div {
+  display: block; }
+
+.outputmsg {
+  font-size: 13px;
+  line-height: 20px;
+  margin: 4px 3px 3px 3px; }
+
+.outputmsg_error {
+  font-weight: normal;
+  font-family: "Source Sans Pro", sans-serif, Arial; }
+
+.notification-danger {
+  background-color: #ffdadc;
+  border-color: #c83c36;
+  color: #64201a; }
+
+.notification {
+  padding: 10px;
+  margin-bottom: 18px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  border-color: #c83c36; }
+
+.mt-5 .-padding-20 {
+  margin-left: 66px; }
