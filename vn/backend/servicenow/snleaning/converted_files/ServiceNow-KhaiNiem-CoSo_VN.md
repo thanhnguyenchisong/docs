@@ -13,6 +13,13 @@
 4. [Reference Fields & Relationships (Trường tham chiếu & quan hệ)](#4-reference-fields--relationships)
 5. [Forms vs Lists (Form và Danh sách)](#5-forms-vs-lists)
 6. [Update Sets](#6-update-sets)
+7. [Access Control Lists — ACLs (Bảo mật)](#7-access-control-lists--acls)
+8. [User Administration (Quản trị người dùng)](#8-user-administration)
+9. [Notifications & Events (Thông báo & Sự kiện)](#9-notifications--events)
+10. [CMDB & Configuration Items](#10-cmdb--configuration-items)
+11. [Import Sets & Transform Maps (Nhập dữ liệu)](#11-import-sets--transform-maps)
+12. [Application Scope (Phạm vi ứng dụng)](#12-application-scope)
+13. [SLA — Service Level Agreements](#13-sla--service-level-agreements)
 
 ---
 
@@ -973,6 +980,700 @@ Khi Preview, ServiceNow phát hiện xung đột nếu:
 **Khi nào dùng gì:**
 - **Update Sets:** Thay đổi nhỏ trong Global scope, hotfix nhanh
 - **Source Control:** Phát triển ứng dụng scoped, team nhiều người, cần versioning
+
+---
+
+## 7. Access Control Lists — ACLs
+
+### 7.1 Khái niệm
+
+**ACL (Access Control List)** là cơ chế bảo mật cốt lõi của ServiceNow, kiểm soát **ai** được phép **làm gì** với **dữ liệu nào**. ACLs bảo vệ dữ liệu ở mọi tầng: bảng, trường, và bản ghi.
+
+> **Nguyên tắc:** Mặc định, ServiceNow **từ chối** truy cập. ACL phải **cho phép** một cách tường minh.
+
+### 7.2 Các loại Operation
+
+| Operation | Ý nghĩa | Ví dụ |
+|---|---|---|
+| **create** | Tạo bản ghi mới | User có thể tạo Incident? |
+| **read** | Xem bản ghi | User có thể xem Incident? |
+| **write** | Sửa bản ghi | User có thể cập nhật Incident? |
+| **delete** | Xóa bản ghi | User có thể xóa Incident? |
+
+### 7.3 Cấp độ ACL
+
+```
+Cấp Table:   incident.*              → Toàn bộ bảng Incident
+Cấp Field:   incident.state          → Chỉ trường State trên Incident
+Cấp Row:     Kết hợp Condition/Script → Lọc theo giá trị bản ghi cụ thể
+```
+
+**Ví dụ phân cấp:**
+
+```
+                  ┌─────────────────────┐
+                  │  incident.* (read)  │  ← User phải pass ACL này trước
+                  │  Role: itil         │
+                  └──────────┬──────────┘
+                             │
+                  ┌──────────┴──────────┐
+                  │  incident.state     │  ← Sau đó kiểm tra ACL cấp field
+                  │  (write)            │
+                  │  Role: admin        │
+                  └─────────────────────┘
+```
+
+> Để **đọc** trường `state` trên Incident, user cần pass CẢ HAI: ACL table-level `incident.* read` VÀ nếu có ACL field-level `incident.state read`.
+
+### 7.4 Thứ tự đánh giá ACL
+
+Mỗi ACL có 3 thành phần đánh giá, kiểm tra **theo thứ tự**:
+
+```
+1. ROLE        →  User có role cần thiết?
+     │ true
+     ▼
+2. CONDITION   →  Bản ghi thỏa điều kiện?
+     │ true
+     ▼
+3. SCRIPT      →  Script trả về true?
+     │ true
+     ▼
+   ✅ GRANTED     (cả 3 phải true)
+```
+
+- Nếu **bất kỳ bước nào** trả về false → **DENIED**
+- Nếu ACL **để trống** một bước (VD: không có script) → bước đó mặc định **true**
+
+### 7.5 Ví dụ ACL thực tế
+
+**ACL 1 — Chỉ user có role `itil` mới đọc được Incident:**
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Type | Record |
+| Operation | read |
+| Name | incident.* |
+| Role | itil |
+| Condition | (trống) |
+| Script | (trống) |
+
+**ACL 2 — Chỉ user được gán mới sửa được Incident:**
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Type | Record |
+| Operation | write |
+| Name | incident.* |
+| Role | itil |
+| Condition | `assigned_to = (current user)` |
+
+**ACL 3 — Admin mới xóa được Incident, kèm script log:**
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Operation | delete |
+| Name | incident.* |
+| Role | admin |
+| Script | `gs.info('Delete attempt on ' + current.number); answer = true;` |
+
+### 7.6 Debugging ACLs
+
+- **System Diagnostics > Security Rules**: Kiểm tra ACL nào đang áp dụng cho session hiện tại.
+- **Impersonation**: Đăng nhập giả lập user khác để kiểm tra quyền.
+- **Debug Security Rules**: `System Diagnostics > Session Debug > Debug Security Rules` → bật log chi tiết.
+
+---
+
+## 8. User Administration
+
+### 8.1 Users (sys_user)
+
+Bảng `sys_user` chứa tất cả người dùng. Mỗi user có:
+
+| Trường | Mô tả | Ví dụ |
+|---|---|---|
+| User ID | Tên đăng nhập | `fred.luddy` |
+| First name / Last name | Họ tên | Fred / Luddy |
+| Email | Địa chỉ email | fred@example.com |
+| Active | Tài khoản có hoạt động | true/false |
+| Department | Phòng ban | IT, HR |
+| Manager | Quản lý trực tiếp | Reference → sys_user |
+| Time zone | Múi giờ | Asia/Ho_Chi_Minh |
+| VIP | Người dùng ưu tiên | true/false |
+
+### 8.2 Groups (sys_user_group)
+
+**Group** tập hợp nhiều user theo chức năng hoặc tổ chức:
+
+```
+┌── IT Support ──────────┐     ┌── Network Team ──────────┐
+│  Members:              │     │  Members:                │
+│  - Fred Luddy          │     │  - Beth Anglin           │
+│  - Abel Tuter          │     │  - Abel Tuter            │
+│  Manager: Fred Luddy   │     │  Manager: Beth Anglin    │
+│  Roles: itil           │     │  Roles: itil, network    │
+└────────────────────────┘     └──────────────────────────┘
+```
+
+**Bảng trung gian:** `sys_user_grmember` — lưu quan hệ User ↔ Group.
+
+### 8.3 Roles (sys_user_role)
+
+**Role** là tập hợp quyền hạn gán cho user hoặc group.
+
+**Các role quan trọng:**
+
+| Role | Mô tả |
+|---|---|
+| `admin` | Toàn quyền trên instance |
+| `itil` | ITSM user — truy cập Incident, Change, Problem... |
+| `catalog_admin` | Quản trị Service Catalog |
+| `knowledge_admin` | Quản trị Knowledge Base |
+| `approver_user` | Phê duyệt request/change |
+| `snc_internal` | Nội bộ ServiceNow |
+
+**Kế thừa role:**
+
+```
+Group "IT Support" có role "itil"
+     │
+     ▼
+Tất cả thành viên của IT Support TỰ ĐỘNG có role "itil"
+(không cần gán riêng cho từng user)
+```
+
+**Role "contains" role:**
+
+```
+manager_role
+  ├── contains: approver_user
+  └── contains: report_admin
+
+→ User có role "manager_role" TỰ ĐỘNG có cả "approver_user" và "report_admin"
+```
+
+### 8.4 Impersonation & Delegation
+
+**Impersonation:**
+- Admin có thể **giả lập** đăng nhập người dùng khác
+- Mục đích: kiểm tra quyền hạn, debug vấn đề user gặp
+- Cách dùng: Click avatar → Impersonate User → chọn user
+
+**Delegation:**
+- User ủy quyền **phê duyệt** cho người khác khi vắng mặt
+- Cấu hình: Self-Service → My Delegations
+
+### 8.5 Ví dụ — Tìm tất cả user có role admin
+
+```javascript
+var gr = new GlideRecord('sys_user_has_role');
+gr.addQuery('role.name', 'admin');
+gr.addQuery('state', 'active');
+gr.query();
+
+while (gr.next()) {
+  gs.info('Admin: ' + gr.user.getDisplayValue() +
+          ' (' + gr.user.user_name + ')');
+}
+```
+
+---
+
+## 9. Notifications & Events
+
+### 9.1 Events (Sự kiện)
+
+**Event** là tín hiệu mà hệ thống phát ra khi điều gì đó xảy ra. Events hoạt động như **"cầu nối"** giữa hành động và phản hồi.
+
+```
+Hành động             Event                    Phản hồi
+┌────────────┐     ┌───────────────┐     ┌──────────────────┐
+│ Incident   │ ──→ │ incident      │ ──→ │ Send Email       │
+│ được tạo   │     │ .created      │     │ Ghi log          │
+└────────────┘     └───────────────┘     │ Trigger Flow     │
+                                          └──────────────────┘
+```
+
+**Bảng Event Registry:** `sysevent_register` — đăng ký tất cả events.
+
+**Ví dụ events quan trọng:**
+
+| Event | Trigger khi |
+|---|---|
+| `incident.created` | Incident mới được tạo |
+| `incident.assigned` | Incident được gán cho user |
+| `sc_request.approved` | Request được phê duyệt |
+| `sla.breached` | SLA bị vi phạm |
+
+### 9.2 Notifications (Email Notifications)
+
+**Notification** là email tự động gửi khi điều kiện được thỏa mãn.
+
+**3 câu hỏi cấu hình:**
+
+```
+1. WHEN?   → Khi nào gửi? (Insert, Update, Condition)
+2. WHO?    → Gửi cho ai? (Users, Groups, Email fields)
+3. WHAT?   → Nội dung gì? (Subject, Body, Template)
+```
+
+**Cấu hình Notification:**
+
+| Tab | Nội dung |
+|---|---|
+| **When to send** | Bảng, Insert/Update, Conditions (VD: Priority = 1) |
+| **Who will receive** | Users/Groups cụ thể, hoặc trường reference trên bản ghi (VD: Assigned to) |
+| **What it will contain** | Subject line, Email body template |
+
+### 9.3 Email Template Variables
+
+Trong nội dung email, dùng `${field_name}` để chèn giá trị trường:
+
+```
+Subject: Incident ${number} cần sự chú ý của bạn
+
+Body:
+Xin chào ${assigned_to.first_name},
+
+Incident ${number} đã được gán cho bạn.
+
+Mô tả: ${short_description}
+Mức ưu tiên: ${priority}
+Người báo cáo: ${caller_id.name}
+
+Vui lòng xử lý trong vòng ${sla.breach_time}.
+
+Trân trọng,
+IT Service Desk
+```
+
+**Dot-walking trong template:** `${assigned_to.department.name}` → tên phòng ban người được gán.
+
+### 9.4 Notification Preferences
+
+Mỗi user có thể tùy chỉnh notification preferences:
+- **Opt-in / Opt-out:** Bật/tắt loại notification cụ thể
+- **Channel:** Email, SMS, Push notification
+- **Schedule:** Chỉ nhận notification trong giờ làm việc
+
+**Quản lý:** System Notification > Email > Notifications
+
+### 9.5 Ví dụ — Kiểm tra notification log
+
+```javascript
+// Xem notification nào đã gửi cho 1 Incident
+var gr = new GlideRecord('sys_email');
+gr.addQuery('instance', 'INC0010045'); // Number hoặc sys_id
+gr.orderByDesc('sys_created_on');
+gr.query();
+
+while (gr.next()) {
+  gs.info('Email gửi: ' + gr.recipients + ' | Subject: ' + gr.subject +
+          ' | Status: ' + gr.type);
+}
+```
+
+---
+
+## 10. CMDB & Configuration Items
+
+### 10.1 CMDB là gì?
+
+**CMDB (Configuration Management Database)** là cơ sở dữ liệu trung tâm lưu trữ thông tin về tất cả **tài sản IT** (Configuration Items) và **mối quan hệ** giữa chúng.
+
+> **Mục đích:** Hiểu tác động của sự cố, lên kế hoạch thay đổi, quản lý tài sản.
+
+### 10.2 CI (Configuration Item)
+
+**CI** là bất kỳ tài sản nào cần được quản lý: server, laptop, phần mềm, dịch vụ, hợp đồng...
+
+**Phân cấp bảng CMDB:**
+
+```
+                         cmdb
+                          │
+                       cmdb_ci ← (bảng gốc cho tất cả CIs)
+                          │
+        ┌─────────┬───────┼────────┬──────────────┐
+        │         │       │        │              │
+   cmdb_ci_   cmdb_ci_  cmdb_ci_ cmdb_ci_    cmdb_ci_
+   computer   server    service  app_server   network_gear
+        │
+   ┌────┼────────┐
+   │             │
+ cmdb_ci_     cmdb_ci_
+ pc_hardware  laptop
+```
+
+### 10.3 CI Relationships
+
+CIs không tồn tại độc lập — chúng có **mối quan hệ** với nhau:
+
+```
+┌── Email Service ──────┐
+│  (Business Service)   │
+│                       │
+│  Depends on:          │
+│  ├── Exchange Server  │──→ CI: cmdb_ci_server
+│  ├── Active Directory │──→ CI: cmdb_ci_app_server
+│  └── Network VLAN 10  │──→ CI: cmdb_ci_network_gear
+└───────────────────────┘
+
+→ Khi Exchange Server gặp sự cố, ta biết ngay Email Service bị ảnh hưởng.
+```
+
+**Các loại relationship:**
+
+| Loại | Ý nghĩa | Ví dụ |
+|---|---|---|
+| **Depends on** | CI này phụ thuộc CI kia | App depends on Database |
+| **Used by** | CI này được sử dụng bởi | Server used by HR Team |
+| **Runs on** | CI chạy trên CI | App runs on Server |
+| **Contains** | CI chứa CI khác | Rack contains Servers |
+
+### 10.4 CSDM (Common Service Data Model)
+
+**CSDM** là framework chuẩn hóa cách tổ chức dữ liệu trong CMDB:
+
+```
+               ┌─────────────────────┐
+               │  Business Service   │  VD: Email cho toàn công ty
+               └──────────┬──────────┘
+                          │
+               ┌──────────┴──────────┐
+               │ Technical Service   │  VD: Microsoft Exchange
+               └──────────┬──────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          │               │               │
+   ┌──────┴──────┐ ┌──────┴──────┐ ┌──────┴──────┐
+   │ Application │ │ Server      │ │ Database    │
+   │ Service     │ │             │ │             │
+   └─────────────┘ └─────────────┘ └─────────────┘
+```
+
+### 10.5 Discovery
+
+**ServiceNow Discovery** tự động quét mạng để:
+- Phát hiện CIs mới
+- Cập nhật thông tin CIs hiện có
+- Xác định relationships
+- Lên lịch quét định kỳ
+
+### 10.6 Ví dụ — Truy vấn CMDB
+
+```javascript
+// Tìm tất cả server Linux đang active
+var gr = new GlideRecord('cmdb_ci_server');
+gr.addQuery('os', 'CONTAINS', 'Linux');
+gr.addQuery('operational_status', 1); // Operational
+gr.query();
+
+while (gr.next()) {
+  gs.info('Server: ' + gr.name +
+          ' | OS: ' + gr.os +
+          ' | IP: ' + gr.ip_address +
+          ' | Location: ' + gr.location.getDisplayValue());
+}
+```
+
+---
+
+## 11. Import Sets & Transform Maps
+
+### 11.1 Khái niệm
+
+**Import Set** là quy trình nhập dữ liệu từ nguồn bên ngoài vào ServiceNow. Dữ liệu **không đi thẳng** vào bảng đích mà đi qua **bảng tạm** (staging table).
+
+### 11.2 Quy trình Import
+
+```
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
+│  NGUỒN       │     │  IMPORT SET      │     │  TRANSFORM MAP   │     │  BẢNG ĐÍCH   │
+│              │     │  TABLE           │     │                  │     │  (TARGET)    │
+│  CSV         │     │  (Staging)       │     │  Ánh xạ cột     │     │              │
+│  Excel       │ ──→ │                  │ ──→ │  Source → Target │ ──→ │  sys_user    │
+│  JDBC        │     │  Chứa dữ liệu   │     │  + Coalesce      │     │  incident    │
+│  LDAP        │     │  thô, chưa xử lý │     │  + Scripts       │     │  cmdb_ci     │
+│  JSON/XML    │     │                  │     │                  │     │              │
+└──────────────┘     └──────────────────┘     └──────────────────┘     └──────────────┘
+```
+
+### 11.3 Các thành phần
+
+#### Import Set Table (Bảng staging)
+
+- Bảng tạm tự động tạo khi import lần đầu
+- Chứa dữ liệu thô từ nguồn, chưa ánh xạ
+- Tên format: `u_imp_<name>` hoặc tự động
+
+#### Transform Map
+
+Quy tắc ánh xạ cột từ Import Set Table → Target Table:
+
+```
+Import Set Table            Transform Map              Target Table
+┌─────────────────┐     ┌─────────────────────┐     ┌──────────────────┐
+│ first_name      │ ──→ │ first_name → first_  │ ──→ │ first_name       │
+│ last_name       │ ──→ │ last_name → last_    │ ──→ │ last_name        │
+│ email_address   │ ──→ │ email_address → email│ ──→ │ email            │
+│ dept_code       │ ──→ │ (Script: lookup)     │ ──→ │ department (ref) │
+│ phone           │ ──→ │ phone → phone        │ ──→ │ phone            │
+└─────────────────┘     └─────────────────────┘     └──────────────────┘
+```
+
+#### Coalesce Field ⭐
+
+**Coalesce** xác định trường dùng để tìm bản ghi đã tồn tại → **tránh trùng lặp**.
+
+```
+Ví dụ: Import user, coalesce field = "email"
+
+Dữ liệu import: { name: "Fred Luddy", email: "fred@example.com" }
+
+→ Hệ thống kiểm tra: email "fred@example.com" đã tồn tại trong sys_user?
+  ├── CÓ  → UPDATE bản ghi hiện có
+  └── KHÔNG → INSERT bản ghi mới
+```
+
+> **⚠️ Nếu không set Coalesce**, mỗi lần import sẽ tạo bản ghi MỚI → dữ liệu bị trùng lặp.
+
+### 11.4 Data Sources
+
+| Loại | Mô tả | Ví dụ |
+|---|---|---|
+| **File** | Upload file trực tiếp | CSV, Excel, XML, JSON |
+| **JDBC** | Kết nối database bên ngoài | Oracle, SQL Server, MySQL |
+| **LDAP** | Kết nối thư mục LDAP | Active Directory |
+| **Custom** | Script tùy chỉnh | REST API, FTP |
+
+### 11.5 Scheduled Import
+
+Tự động import dữ liệu theo lịch:
+- **Daily:** Đồng bộ user từ Active Directory hàng ngày
+- **Weekly:** Cập nhật CMDB từ asset management tool
+- **On demand:** Import khi cần
+
+### 11.6 Ví dụ — Import CSV vào sys_user
+
+**File users.csv:**
+```
+first_name,last_name,email,department
+Nguyễn,Văn A,nguyenvana@company.com,IT
+Trần,Thị B,tranthib@company.com,HR
+Lê,Văn C,levanc@company.com,Finance
+```
+
+**Bước thực hiện:**
+1. Điều hướng: **System Import Sets > Load Data**
+2. Chọn **Import Set Table**: Create new
+3. **Source**: Upload file `users.csv`
+4. Click **Submit** → dữ liệu vào staging table
+5. Tạo **Transform Map**: ánh xạ cột
+   - `first_name` → `first_name`
+   - `last_name` → `last_name`
+   - `email` → `email` (**Coalesce: ✅**)
+   - `department` → `department` (Reference lookup)
+6. Click **Transform** → dữ liệu chuyển vào `sys_user`
+
+### 11.7 Transform Event Scripts
+
+Chạy logic tùy chỉnh trong quá trình transform:
+
+| Event | Khi nào chạy | Ví dụ |
+|---|---|---|
+| **onBefore** | Trước khi transform mỗi row | Validate dữ liệu, set giá trị mặc định |
+| **onAfter** | Sau khi transform mỗi row | Gán role, gửi notification |
+| **onStart** | Trước khi transform bắt đầu | Khởi tạo biến |
+| **onComplete** | Sau khi transform kết thúc | Gửi report, cleanup |
+| **onForeignInsert** | Khi tạo bản ghi ở bảng tham chiếu | Tạo department nếu chưa tồn tại |
+
+```javascript
+// Ví dụ Transform Script — onBefore
+// Tự động tạo User ID từ email
+(function runTransformScript(source, map, log, target) {
+  // Lấy phần trước @ của email làm user_name
+  var email = source.u_email + '';
+  if (email) {
+    target.user_name = email.split('@')[0];
+  }
+})(source, map, log, target);
+```
+
+---
+
+## 12. Application Scope
+
+### 12.1 Khái niệm
+
+**Application Scope** là ranh giới logic phân tách các ứng dụng trong ServiceNow, bảo vệ dữ liệu và code khỏi sự can thiệp lẫn nhau.
+
+### 12.2 Global Scope vs Application Scope
+
+| Đặc điểm | Global Scope | Scoped Application |
+|---|---|---|
+| **Prefix bảng** | Không có prefix | `x_<company>_<app>_` |
+| **Prefix trường** | `u_` | `u_` |
+| **Truy cập dữ liệu** | Truy cập mọi thứ | Chỉ trong scope + được cấp quyền |
+| **Quản lý code** | Ai có quyền đều sửa được | Chỉ developer trong scope |
+| **Application** | Không thuộc app cụ thể | Đóng gói trong 1 ứng dụng |
+| **Source Control** | Dùng Update Sets | Dùng Git qua Studio |
+| **Publish** | Không thể | Có thể publish lên Store |
+
+### 12.3 Scoped Application
+
+**Scoped App** là ứng dụng có phạm vi riêng (scope), bao gồm:
+
+```
+┌── Scoped App: NeedIt (x_58872_needit) ──────────────┐
+│                                                       │
+│  📦 Tables: x_58872_needit_needit                    │
+│  📝 Business Rules: NeedIt Date Validation           │
+│  🖥️ Client Scripts: NeedIt Welcome Message           │
+│  📋 UI Policies: NeedIt Show/Hide Other              │
+│  🔧 Script Includes: NeedItUtils                     │
+│  📄 Service Portal Widgets                           │
+│                                                       │
+│  → Tất cả nằm trong scope, được đóng gói cùng nhau  │
+└───────────────────────────────────────────────────────┘
+```
+
+### 12.4 Cross-Scope Access
+
+Khi scoped app cần truy cập dữ liệu ngoài scope:
+
+```
+┌── Scoped App: NeedIt ──┐       ┌── Global ──────────────┐
+│                         │       │                        │
+│  Script Include:        │ ───→  │  GlideRecord('incident')│
+│  NeedItUtils            │  ❓   │                        │
+│                         │       │  → Cần Cross-Scope     │
+└─────────────────────────┘       │    Access Permission   │
+                                   └────────────────────────┘
+```
+
+**Cấu hình Cross-Scope Access:**
+- **Application Cross-Scope Access**: `System Applications > Application Cross-Scope Access`
+- Admin phê duyệt hoặc từ chối yêu cầu cross-scope
+- Hiển thị popup xác nhận lần đầu truy cập cross-scope
+
+### 12.5 Chuyển đổi Scope
+
+**Application Picker** trong banner cho phép chuyển scope:
+
+1. Click biểu tượng **Application Scope** (🔧) trong banner
+2. Chọn scope (Global hoặc Scoped App khác)
+3. Mọi thay đổi cấu hình sẽ thuộc về scope đã chọn
+
+> **⚠️ Lưu ý:** Nếu tạo Business Rule khi scope đang là "NeedIt", rule đó thuộc về NeedIt scope. Nếu quên chuyển scope, có thể tạo nhầm artifacts ở scope sai.
+
+---
+
+## 13. SLA — Service Level Agreements
+
+### 13.1 Khái niệm
+
+**SLA (Service Level Agreement)** là cam kết thời gian phục vụ giữa đội IT và khách hàng — ví dụ: "Incident Priority 1 phải được giải quyết trong 4 giờ".
+
+ServiceNow theo dõi SLA tự động và cảnh báo khi gần hoặc đã vi phạm.
+
+### 13.2 Thành phần SLA
+
+```
+┌── SLA Definition ──────────────────────────────────────────────┐
+│                                                                 │
+│  Name: P1 Resolution SLA                                        │
+│  Table: Incident                                                │
+│  Duration: 4 hours (thời gian cam kết)                          │
+│                                                                 │
+│  Start condition:   Priority = 1 AND State = New                │
+│  Stop condition:    State = Resolved OR State = Closed           │
+│  Pause condition:   State = On Hold (tạm dừng đếm giờ)          │
+│  Reset condition:   Priority changes from 1 to other            │
+│                                                                 │
+│  Schedule: 8-5 weekdays (chỉ đếm giờ làm việc)                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 13.3 Trạng thái SLA
+
+```
+  ┌─────────┐     ┌───────────┐     ┌───────────┐
+  │  In      │ ──→ │  Paused   │ ──→ │  Achieved │ ✅
+  │ Progress │     │  (On Hold)│     │  (đúng hạn)│
+  └────┬─────┘     └───────────┘     └───────────┘
+       │
+       └──────────────────────────→  ┌───────────┐
+                                     │  Breached  │ ❌ Vi phạm
+                                     └───────────┘
+```
+
+| Trạng thái | Ý nghĩa |
+|---|---|
+| **In Progress** | SLA đang đếm thời gian |
+| **Paused** | Tạm dừng (VD: chờ phản hồi khách hàng) |
+| **Achieved** | Hoàn thành đúng hạn ✅ |
+| **Breached** | Vi phạm — quá thời gian cam kết ❌ |
+
+### 13.4 SLA Timeline trên form
+
+Trên form Incident, **SLA Timeline** hiển thị trực quan:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  P1 Resolution SLA                                          │
+│  ████████████████████████░░░░░░░░  60% (2h24m / 4h00m)     │
+│  ──────────────────────────────────────────────              │
+│  Started: 10:00 AM  |  Breach at: 2:00 PM  |  Time left: 1h36m  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 13.5 Schedules (Lịch làm việc)
+
+SLA thường chỉ đếm thời gian **trong giờ làm việc**:
+
+| Schedule | Mô tả | Ví dụ |
+|---|---|---|
+| **8-5 weekdays** | Thứ 2-6, 8h-17h | 4h SLA = 4 giờ làm việc (có thể trải qua > 1 ngày) |
+| **24x7** | Liên tục, kể cả cuối tuần | 4h SLA = đúng 4 tiếng |
+| **Custom** | Tùy chỉnh theo tổ chức | Bao gồm/loại trừ ngày lễ |
+
+**Ví dụ:**
+- Incident tạo lúc **16:00 thứ 6**, SLA = 4 giờ, schedule = 8-5 weekdays
+- 16:00 → 17:00 = 1 giờ (thứ 6)
+- Thứ 7, Chủ nhật: KHÔNG ĐẾM
+- 8:00 → 11:00 thứ 2 = 3 giờ
+- **Breach time: 11:00 thứ 2** (tổng cộng 4 giờ làm việc)
+
+### 13.6 SLA Notifications
+
+SLA tự động gửi thông báo tại các mốc:
+
+| Mốc | Ý nghĩa | Hành động |
+|---|---|---|
+| **50% elapsed** | Đã dùng 50% thời gian | Email nhắc nhở |
+| **75% elapsed** | Đã dùng 75% thời gian | Escalation — thông báo manager |
+| **100% (Breach)** | Vi phạm SLA | Alert toàn bộ chain |
+
+### 13.7 Ví dụ — Truy vấn SLA vi phạm
+
+```javascript
+// Tìm tất cả Incident đang bị vi phạm SLA
+var gr = new GlideRecord('task_sla');
+gr.addQuery('task.sys_class_name', 'incident');
+gr.addQuery('stage', 'breached');
+gr.addQuery('active', true);
+gr.query();
+
+gs.info('=== SLA Vi Phạm ===');
+while (gr.next()) {
+  gs.info(gr.task.number + ' | SLA: ' + gr.sla.getDisplayValue() +
+          ' | Breach time: ' + gr.breach_time +
+          ' | Business % elapsed: ' + gr.business_percentage);
+}
+gs.info('Tổng: ' + gr.getRowCount() + ' Incident vi phạm SLA');
+```
 
 ---
 
