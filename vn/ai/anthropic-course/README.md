@@ -6,6 +6,38 @@ Anthropic cung cấp tài liệu học qua **3 kênh chính**:
 
 ---
 
+## 🗂️ Nội dung khóa học (Vietnamese Notes)
+
+Các module dưới đây là ghi chú chi tiết bằng **tiếng Việt**, tổ chức theo cấu trúc 16 khóa chính thức trên [claude.com/resources/courses](https://claude.com/resources/courses).
+
+### Foundation Layer
+
+| # | Module | Mô tả | Files |
+|---|--------|-------|-------|
+| 01 | [**Claude 101**](01-claude-101/) | Giới thiệu cơ bản Claude, đăng ký, prompt đầu tiên | 1 |
+| 09 | [**AI Fluency**](09-ai-fluency/) | AI cho educators, students, nonprofits, CRAFT framework | 1 |
+
+### Builder Layer — Core
+
+| # | Module | Mô tả | Files |
+|---|--------|-------|-------|
+| 02 | [**Building with the Claude API**](02-building-with-api/) | API, prompting, evals, tool use, RAG, features, MCP, agents | 10 |
+| 03 | [**Claude Code 101**](03-claude-code-101/) | AI coding agent, agentic loop, CLAUDE.md, hooks | 6 |
+| 04 | [**Subagents**](04-subagents/) | Delegate tasks, custom subagents, design patterns | 5 |
+| 05 | [**Agent Skills**](05-agent-skills/) | SKILL.md, reusable instructions, sharing, troubleshooting | 6 |
+| 06 | [**Claude Cowork**](06-claude-cowork/) | Task loop, plugins, file/research workflows | 6 |
+
+### Infrastructure Layer — Advanced
+
+| # | Module | Mô tả | Files |
+|---|--------|-------|-------|
+| 07 | [**MCP (Model Context Protocol)**](07-mcp/) | Servers, clients, tools, resources, prompts | 7 |
+| 08 | [**Cloud Deployment**](08-cloud-deployment/) | AWS Bedrock, Google Vertex AI | 3 |
+
+> **Tổng: 9 modules, ~45 files** markdown viết bằng tiếng Việt + code ví dụ Python.
+
+---
+
 ## 1. 🎓 GitHub Courses (github.com/anthropics/courses)
 
 > **Repo chính:** [https://github.com/anthropics/courses](https://github.com/anthropics/courses)
@@ -21,85 +53,19 @@ Anthropic cung cấp tài liệu học qua **3 kênh chính**:
 | 4 | **[Prompt Evaluations](https://github.com/anthropics/courses/tree/master/prompt_evaluations)** | Đo lường quality prompts, eval frameworks | Intermediate → Advanced |
 | 5 | **[Tool Use](https://github.com/anthropics/courses/tree/master/tool_use)** | Function calling, tool integration, workflows | Advanced |
 
-### Chi tiết từng khóa:
-
-#### Course 1: Anthropic API Fundamentals
-```
-Nội dung:
-├── Getting API key & setup
-├── Model parameters (temperature, max_tokens, top_p)
-├── Messages API format
-├── System prompts
-├── Multimodal (text + images)
-├── Streaming responses
-└── Error handling & retries
-```
-
-#### Course 2: Prompt Engineering Interactive Tutorial (9 Chapters)
-```
-Chapter 1: Basic Prompt Structure
-Chapter 2: Being Clear and Direct
-Chapter 3: Assigning Roles (System Prompts)
-Chapter 4: Separating Data from Instructions (XML tags)
-Chapter 5: Formatting Output (JSON, lists, etc.)
-Chapter 6: Thinking Step by Step (Chain-of-Thought)
-Chapter 7: Using Examples (Few-shot)
-Chapter 8: Avoiding Hallucinations
-Chapter 9: Complex Prompts (chaining techniques)
-
-Mỗi chapter có:
-├── Lesson (lý thuyết)
-├── Exercises (bài tập)
-└── Playground (thử nghiệm)
-```
-
-#### Course 3: Real World Prompting
-```
-Nội dung:
-├── Customer support chatbot prompts
-├── Content generation prompts
-├── Data extraction & classification
-├── Code generation prompts
-├── Summarization prompts
-└── Complex multi-step workflows
-```
-
-#### Course 4: Prompt Evaluations
-```
-Nội dung:
-├── Tại sao cần evaluate prompts
-├── Evaluation metrics
-├── Automated evaluation pipelines
-├── A/B testing prompts
-├── Scoring & benchmarking
-└── Continuous improvement workflow
-```
-
-#### Course 5: Tool Use (Function Calling)
-```
-Nội dung:
-├── Tool use basics
-├── Defining tools (JSON schema)
-├── Tool choice (auto, required, specific)
-├── Multi-tool workflows
-├── Error handling in tool calls
-├── Sequential tool chains
-├── Parallel tool execution
-└── Building agentic systems with tools
-```
-
 ---
 
-## 2. 🏫 Anthropic Academy (anthropic.skilljar.com)
+## 2. 🏫 Anthropic Academy (claude.com/resources/courses)
 
-> **Portal:** [https://anthropic.skilljar.com/](https://anthropic.skilljar.com/)
-> Self-paced | Certificates | Miễn phí
+> **Portal:** [https://claude.com/resources/courses](https://claude.com/resources/courses)
+> **LMS:** [https://anthropic.skilljar.com/](https://anthropic.skilljar.com/)
+> Self-paced | Video + Quiz | Certificates | Miễn phí
 
-### Các tracks:
+### 16 khóa chính thức:
 
 ```
 FOUNDATION LAYER (Non-Technical):
-├── Claude 101 — Giới thiệu cơ bản dùng Claude
+├── Claude 101 — Giới thiệu cơ bản
 ├── AI Fluency: Framework & Foundations
 ├── AI Fluency for Students
 ├── AI Fluency for Educators
@@ -107,29 +73,29 @@ FOUNDATION LAYER (Non-Technical):
 └── Teaching AI Fluency
 
 BUILDER LAYER (Technical):
-├── Building with the Claude API
-│   ├── Authentication
-│   ├── Message construction
-│   ├── Tool use
-│   └── Response handling
-├── Introduction to Agent Skills
-│   ├── Build agents
-│   ├── Configure skills
-│   └── Share & deploy
-└── Claude Code in Action
-    ├── Setup Claude Code
-    ├── Dev workflows
-    └── Best practices
+├── Building with the Claude API — KHÓA CHÍNH (toàn diện nhất)
+│   ├── API Access, Multi-turn, System Prompts
+│   ├── Temperature, Streaming, Structured Data
+│   ├── Prompt Evaluation & Grading
+│   ├── Prompt Engineering Techniques
+│   ├── Tool Use (Client + Server tools)
+│   ├── RAG & Agentic Search
+│   ├── Features (Extended Thinking, Vision, PDF, Caching)
+│   ├── Model Context Protocol
+│   └── Agents & Workflows
+├── Claude Code 101
+├── Claude Code in Action
+├── Introduction to Subagents
+└── Introduction to Agent Skills
+
+COWORK LAYER:
+└── Introduction to Claude Cowork
 
 INFRASTRUCTURE LAYER (Advanced):
-├── Introduction to MCP (Model Context Protocol)
-│   ├── MCP basics
-│   ├── Multi-server setups
-│   ├── Security
-│   └── Production patterns
-├── Advanced MCP Topics
+├── Introduction to Model Context Protocol
+├── MCP: Advanced Topics
 ├── Claude with Amazon Bedrock
-└── Claude with Google Cloud Vertex AI
+└── Claude with Google Cloud's Vertex AI
 ```
 
 ---
@@ -176,26 +142,30 @@ INFRASTRUCTURE LAYER (Advanced):
 
 ```
 WEEK 1: Fundamentals
-├── Day 1-2: Anthropic API Fundamentals (Course 1)
-├── Day 3-5: Prompt Engineering Tutorial Ch.1-5 (Course 2)
-└── Practice: Try Claude API with basic prompts
+├── Day 1: Claude 101 (01-claude-101/)
+├── Day 2-3: API Access, Temperature, Streaming (02-building-with-api/ bài 1-2)
+├── Day 4-5: Prompt Engineering + Evaluation (02-building-with-api/ bài 3-4)
+└── Practice: Gọi API, viết prompts, chạy eval
 
-WEEK 2: Intermediate
-├── Day 1-2: Prompt Engineering Tutorial Ch.6-9 (Course 2)
-├── Day 3-4: Real World Prompting (Course 3)
-├── Day 5: Prompt Evaluations (Course 4)
-└── Practice: Build a real-world prompt pipeline
+WEEK 2: Tools & Features
+├── Day 1-2: Tool Use (02-building-with-api/ bài 5)
+├── Day 3: RAG (02-building-with-api/ bài 6)
+├── Day 4: Extended Thinking, Vision, Caching (02-building-with-api/ bài 7)
+├── Day 5: Agents & Workflows (02-building-with-api/ bài 9)
+└── Practice: Build agentic pipeline với tool use
 
-WEEK 3: Advanced
-├── Day 1-3: Tool Use (Course 5)
-├── Day 4-5: MCP (Model Context Protocol) — Academy
-└── Practice: Build an agent with tool use
+WEEK 3: Claude Code Ecosystem
+├── Day 1-2: Claude Code 101 (03-claude-code-101/)
+├── Day 3: Subagents (04-subagents/)
+├── Day 4: Agent Skills (05-agent-skills/)
+├── Day 5: Claude Cowork (06-claude-cowork/)
+└── Practice: Setup Claude Code, tạo subagent + skill
 
-WEEK 4: Production
-├── Day 1-2: Claude with Bedrock/Vertex — Academy
-├── Day 3-4: Agent patterns from docs
-├── Day 5: Review & build portfolio project
-└── Practice: Deploy an agent to production
+WEEK 4: Infrastructure & Production
+├── Day 1-3: MCP deep dive (07-mcp/)
+├── Day 4: Cloud Deployment — Bedrock/Vertex (08-cloud-deployment/)
+├── Day 5: Review & portfolio project
+└── Practice: Build MCP server, deploy lên cloud
 ```
 
 ---
@@ -204,6 +174,7 @@ WEEK 4: Production
 
 | Resource | URL |
 |----------|-----|
+| Courses Portal | [claude.com/resources/courses](https://claude.com/resources/courses) |
 | GitHub Courses | [github.com/anthropics/courses](https://github.com/anthropics/courses) |
 | Anthropic Academy | [anthropic.skilljar.com](https://anthropic.skilljar.com/) |
 | Documentation | [docs.anthropic.com](https://docs.anthropic.com/) |
